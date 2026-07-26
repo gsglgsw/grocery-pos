@@ -12,13 +12,7 @@ class PosModel {
         this.dbLedger = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'ledger' });
         // 🚀 新增：商品資料庫
         this.dbProducts = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'products' });
-        this.localDB = {
-            '4710123456789': { name: '統一肉燥麵', price: 18 },
-            '4711234567890': { name: '台灣啤酒', price: 35 },
-            '9990000000001': { name: '自訂商品', price: 0, isOpenPrice: true, isCustom: true },
-            '9990000000002': { name: '秤重雞蛋', price: 0, isOpenPrice: true },
-            'BOTTLE_RETURN': { name: '退公賣局空瓶', price: -5 }
-        };
+        
         // 確保以下四個 IndexedDB 都有被正確宣告與實體化
         this.dbProducts = localforage.createInstance({ name: 'dbProducts' });
         this.dbOrders = localforage.createInstance({ name: 'dbOrders' });
@@ -231,7 +225,7 @@ class PosModel {
         }
         this._autoSaveCart(); // 🛡️ 觸發防護網備份
     }
-    
+
     // 🚀 新增：核心結帳演算法引擎 (Promotion Engine)
     // 🚀 新增：單一促銷規則運算模組 (具備台式折數智慧轉換)
     _calcSinglePromo(qty, unitPrice, currentTotal, promo) {

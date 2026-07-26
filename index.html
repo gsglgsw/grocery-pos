@@ -3,35 +3,49 @@
 
 <head>
     <meta charset="UTF-8">
-    <!-- 🚀 硬體優化：鎖定縮放，禁止雙擊放大，完全模擬原生 App 手感 -->
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <!-- 🚀 硬體優化：鎖定縮放，完全模擬原生 App 手感 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
     <link rel="icon" href="data:,">
     
     <link rel="manifest" href="./manifest.json">
-        <!-- PWA 核心綁定 -->
-    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1f2937">
-    <!-- 🚀 修正 Meta 警告 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>雜貨店 POS 系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/style.css">
+    
+    <!-- 🚀 Tech Lead 注入：iOS iPad 實機專屬觸控與滑動防禦網 -->
+    <style>
+        /* 1. 禁用所有可互動元素的雙擊放大 (Double-tap to zoom) */
+        button, input, select, a, .numpad-btn {
+            touch-action: manipulation !important;
+            -webkit-tap-highlight-color: transparent; /* 移除點擊時的預設黑框 */
+        }
+        /* 2. 徹底阻斷 iOS 背景回彈 (Rubber Banding) 與下拉刷新 */
+        body, html {
+            overscroll-behavior-y: none !important;
+            /* 允許內容區域滾動，但鎖死 body 本身 */
+        }
+        /* 3. 確保 Modal 內部可以平滑滾動，且滾到頂/底時絕對不會連動背景 (冒泡隔離) */
+        .custom-scrollbar, .overflow-y-auto {
+            -webkit-overflow-scrolling: touch !important; /* 啟動硬體加速平滑滾動 */
+            overscroll-behavior: contain !important; /* 將滾動事件關在容器內 */
+            touch-action: pan-y !important; /* 明確告知瀏覽器這裡只允許上下滑動 */
+        }
+    </style>
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        brand: '#3b82f6', danger: '#ef4444', success: '#22c55e', warning: '#f59e0b', surface: '#f3f4f6'
-                    }
+                    colors: { brand: '#3b82f6', danger: '#ef4444', success: '#22c55e', warning: '#f59e0b', surface: '#f3f4f6' }
                 }
             }
         }
     </script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
 </head>
 
 <body class="bg-gray-200 h-screen w-screen overflow-hidden text-gray-800 select-none">
@@ -39,101 +53,78 @@
     <!-- View 1: 收銀台介面 -->
     <div id="checkout-view" class="flex h-full w-full">
         <!-- 左側：購物車清單 -->
-        <section class="w-3/5 h-full bg-white flex flex-col border-r-4 border-gray-300 shadow-xl z-10">
-            <header class="bg-gray-800 text-white p-4 flex justify-between items-center shadow-md">
-                <div class="flex items-center space-x-4">
-                    <h1 class="text-3xl font-bold tracking-wider">🛒 結帳清單</h1>
-                    <!-- 🚀 新增：一鍵清空按鈕 -->
-                    <button id="btn-clear-cart"
-                        class="bg-red-600 text-white px-4 py-2 rounded-lg text-xl font-bold hover:bg-red-500 active:scale-95 transition-transform shadow flex items-center">
+        <section class="w-[55%] lg:w-3/5 h-full bg-white flex flex-col border-r-4 border-gray-300 shadow-xl z-10">
+            <header class="bg-gray-800 text-white p-3 lg:p-4 flex justify-between items-center shadow-md shrink-0">
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-2xl lg:text-3xl font-bold tracking-wider">🛒 結帳清單</h1>
+                    <button id="btn-clear-cart" class="bg-red-600 text-white px-3 py-2 rounded-lg text-lg font-bold hover:bg-red-500 active:scale-95 transition-transform shadow flex items-center">
                         🗑️ 清空
                     </button>
                 </div>
-                <div class="flex space-x-4">
-                    <button id="btn-go-audit"
-                        class="bg-indigo-500 text-white px-6 py-3 rounded-xl text-2xl font-bold shadow-md hover:bg-indigo-400 active:scale-95 transition-transform">📊
-                        每日查帳</button>
-                    <button id="btn-go-ledger"
-                        class="bg-warning text-gray-900 px-6 py-3 rounded-xl text-2xl font-bold shadow-md hover:bg-yellow-400 active:scale-95 transition-transform">📖
-                        賒帳本</button>
-                    <button id="btn-open-product-manager"
-                        class="bg-purple-600 text-white px-6 py-4 rounded-xl text-2xl font-bold shadow-md active:scale-95 transition-transform hover:bg-purple-700">
-                        📦 商品建檔
-                    </button>
+                <div class="flex space-x-2 lg:space-x-4">
+                    <button id="btn-go-audit" class="bg-indigo-500 text-white px-4 py-2 lg:py-3 rounded-xl text-lg lg:text-xl font-bold shadow-md hover:bg-indigo-400 active:scale-95 transition-transform">📊 查帳</button>
+                    <button id="btn-go-ledger" class="bg-warning text-gray-900 px-4 py-2 lg:py-3 rounded-xl text-lg lg:text-xl font-bold shadow-md hover:bg-yellow-400 active:scale-95 transition-transform">📖 賒帳</button>
+                    <button id="btn-open-product-manager" class="bg-purple-600 text-white px-4 py-2 lg:py-3 rounded-xl text-lg lg:text-xl font-bold shadow-md active:scale-95 transition-transform hover:bg-purple-700">📦 建檔</button>
                 </div>
             </header>
-            <!-- 🚀 加上 relative 讓下拉選單定位 -->
-            <div class="p-4 border-b-2 border-gray-200 bg-gray-50 relative">
-                <input type="text" id="input-barcode-search" placeholder="請掃描條碼，或輸入商品名稱搜尋..."
-                    class="w-full text-2xl p-4 rounded-xl border-2 border-gray-300 focus:outline-none focus:border-brand focus:ring-4 focus:ring-blue-100 placeholder-gray-400">
-                
-                <!-- 🚀 新增：智慧預覽下拉選單 (預設隱藏) -->
+            
+            <div class="p-3 border-b-2 border-gray-200 bg-gray-50 relative shrink-0">
+                <input type="text" id="input-barcode-search" placeholder="掃描條碼，或輸入名稱..."
+                    class="w-full text-xl p-3 rounded-xl border-2 border-gray-300 focus:outline-none focus:border-brand focus:ring-4 focus:ring-blue-100 placeholder-gray-400">
                 <ul id="search-suggestions" class="hidden absolute left-4 right-4 top-full mt-1 bg-white border-2 border-gray-300 rounded-xl shadow-2xl z-[200] max-h-64 overflow-y-auto divide-y-2 divide-gray-100">
                 </ul>
             </div>
-            <main id="cart-list-container" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar"></main>
+            <!-- 🚀 加入 overscroll-contain 隔離滾動 -->
+            <main id="cart-list-container" class="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2 custom-scrollbar"></main>
         </section>
 
-        <!-- 右側：控制區 -->
-        <section class="w-2/5 h-full bg-surface flex flex-col p-4 space-y-4">
-            <div class="grid grid-cols-3 gap-3">
-                <!-- 🚀 修正：自訂商品文字 -->
-                <button
-                    class="bg-white border-2 border-gray-300 rounded-xl p-4 text-2xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand h-24">自訂商品</button>
-                <button
-                    class="bg-white border-2 border-gray-300 rounded-xl p-4 text-2xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand h-24">秤重雞蛋<br><span
-                        class="text-sm font-normal text-gray-500">(自訂)</span></button>
-                <button
-                    class="bg-red-100 border-2 border-red-300 rounded-xl p-4 text-2xl font-bold text-red-700 shadow-sm hover:bg-red-200 active:bg-red-300 h-24">退空瓶<br><span
-                        class="text-sm font-normal text-red-500">(-$5)</span></button>
+        <!-- 🚀 右側：控制區 (高度擠壓修復區) -->
+        <!-- 修改重點：縮小 padding (p-4 -> p-2)，使用 min-h-0 確保 flex 子元素可以正常被壓縮 -->
+        <section class="w-[45%] lg:w-2/5 h-full bg-surface flex flex-col p-2 lg:p-3 space-y-2 overflow-hidden">
+            
+            <!-- 快捷鍵區：移除寫死的 h-24，改用彈性高度 -->
+            <div class="grid grid-cols-3 gap-2 shrink-0">
+                <button class="bg-white border-2 border-gray-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand flex flex-col items-center justify-center min-h-[4rem]">自訂商品</button>
+                <button class="bg-white border-2 border-gray-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand flex flex-col items-center justify-center min-h-[4rem]">秤重雞蛋<br><span class="text-xs font-normal text-gray-500">(自訂)</span></button>
+                <button class="bg-red-100 border-2 border-red-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-red-700 shadow-sm hover:bg-red-200 active:bg-red-300 flex flex-col items-center justify-center min-h-[4rem]">退空瓶<br><span class="text-xs font-normal text-red-500">(-$5)</span></button>
             </div>
 
-            <div class="flex-1 bg-white border-2 border-gray-300 rounded-2xl p-4 shadow-sm flex flex-col">
-                <div
-                    class="mb-4 bg-gray-100 rounded-xl p-4 border-2 border-gray-200 flex justify-end items-center h-20">
-                    <span class="text-gray-400 text-2xl mr-4">輸入:</span>
-                    <span id="numpad-display" class="text-5xl font-mono font-bold text-gray-800"></span>
+            <!-- 數字鍵盤區：加入 min-h-0 讓 grid 根據螢幕剩餘高度自動伸縮 -->
+            <div class="flex-1 bg-white border-2 border-gray-300 rounded-2xl p-2 lg:p-3 shadow-sm flex flex-col min-h-0">
+                <!-- 輸入顯示框：降低高度與 Margin -->
+                <div class="mb-2 bg-gray-100 rounded-xl p-3 border-2 border-gray-200 flex justify-end items-center h-12 lg:h-16 shrink-0">
+                    <span class="text-gray-400 text-xl lg:text-2xl mr-3">輸入:</span>
+                    <span id="numpad-display" class="text-3xl lg:text-5xl font-mono font-bold text-gray-800"></span>
                 </div>
-                <div class="grid grid-cols-3 gap-3 flex-1">
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">7</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">8</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">9</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">4</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">5</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">6</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">1</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">2</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">3</button>
-                    <button
-                        class="numpad-btn bg-red-100 text-red-600 rounded-xl text-4xl font-bold hover:bg-red-200 active:bg-red-300">C</button>
-                    <button
-                        class="numpad-btn bg-gray-100 rounded-xl text-4xl font-bold hover:bg-gray-200 active:bg-gray-300">0</button>
-                    <button
-                        class="numpad-btn bg-blue-100 text-blue-600 rounded-xl text-4xl font-bold hover:bg-blue-200 active:bg-blue-300">確認</button>
+                <!-- 鍵盤按鈕：移除 py-4 固定高度，改用 h-full 讓 Flexbox 自動撐滿 -->
+                <div class="grid grid-cols-3 gap-2 flex-1 min-h-0">
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">7</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">8</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">9</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">4</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">5</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">6</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">1</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">2</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">3</button>
+                    <button class="numpad-btn bg-red-100 text-red-600 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-red-200 active:bg-red-300 h-full flex items-center justify-center">C</button>
+                    <button class="numpad-btn bg-gray-100 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-gray-200 active:bg-gray-300 h-full flex items-center justify-center">0</button>
+                    <button class="numpad-btn bg-blue-100 text-blue-600 rounded-xl text-2xl lg:text-3xl font-bold hover:bg-blue-200 active:bg-blue-300 h-full flex items-center justify-center">確認</button>
                 </div>
             </div>
 
-            <div class="bg-gray-800 rounded-2xl p-6 shadow-lg border-4 border-gray-900">
-                <div class="flex justify-between items-end mb-6">
-                    <span class="text-3xl font-bold text-gray-300">總計：</span>
-                    <span class="text-7xl font-black text-white tracking-tight">$0</span>
+            <!-- 結帳區：壓縮留白，文字從 7xl 降為 5xl 以防破版 -->
+            <div class="bg-gray-800 rounded-2xl p-4 lg:p-5 shadow-lg border-4 border-gray-900 shrink-0">
+                <div class="flex justify-between items-end mb-3 lg:mb-4">
+                    <span class="text-xl lg:text-2xl font-bold text-gray-300">總計：</span>
+                    <span class="text-5xl lg:text-6xl font-black text-white tracking-tight">$0</span>
                 </div>
-                <div id="tender-container" class="flex flex-col gap-2 mb-4"></div>
-                <div class="flex space-x-4">
-                    <!-- 🚀 確認 ID 存在 -->
-                    <button id="btn-checkout-ledger"
-                        class="w-1/4 bg-yellow-500 text-black py-5 rounded-xl text-3xl font-black hover:bg-yellow-400 active:bg-yellow-600">掛帳/賒帳</button>
-                    <button id="btn-checkout"
-                        class="w-3/4 bg-success text-white py-5 rounded-xl text-3xl font-black hover:bg-green-500 active:bg-green-700">現金結帳</button>
+                <!-- 動態找零按鈕容器 -->
+                <div id="tender-container" class="flex flex-col gap-2 mb-3"></div>
+                <!-- 結帳按鈕：壓縮高度 -->
+                <div class="flex space-x-3">
+                    <button id="btn-checkout-ledger" class="w-1/3 bg-yellow-500 text-black py-3 lg:py-4 rounded-xl text-xl lg:text-2xl font-black hover:bg-yellow-400 active:bg-yellow-600 leading-tight">掛帳<br>賒帳</button>
+                    <button id="btn-checkout" class="w-2/3 bg-success text-white py-3 lg:py-4 rounded-xl text-2xl lg:text-3xl font-black hover:bg-green-500 active:bg-green-700">現金結帳</button>
                 </div>
             </div>
         </section>
@@ -141,202 +132,222 @@
 
     <!-- View 2: 賒帳本介面 -->
     <div id="ledger-view" class="hidden flex-col h-full w-full bg-surface z-50 absolute top-0 left-0">
-        <header class="bg-gray-900 text-white p-6 flex justify-between items-center shadow-md">
+        <header class="bg-gray-900 text-white p-6 flex justify-between items-center shadow-md shrink-0">
             <div class="flex items-center space-x-6">
                 <h1 class="text-4xl font-bold tracking-wider">📖 顧客賒帳本</h1>
-                <!-- 🚀 整合 Phase 7：獨立新增顧客按鈕 -->
                 <button id="btn-add-customer-ledger" class="bg-brand text-white px-6 py-2 rounded-lg text-xl font-bold shadow-md hover:bg-blue-600 active:scale-95 transition-transform border-2 border-blue-400">
                     ➕ 新增顧客
                 </button>
             </div>
-            <button id="btn-back-checkout"
-                class="bg-gray-600 text-white px-8 py-3 rounded-xl text-2xl font-bold shadow-md hover:bg-gray-500 active:scale-95 transition-transform">⬅️
-                返回收銀台</button>
+            <button id="btn-back-checkout" class="bg-gray-600 text-white px-8 py-3 rounded-xl text-2xl font-bold shadow-md hover:bg-gray-500 active:scale-95 transition-transform">⬅️ 返回</button>
         </header>
-        <!-- 🚀 新增：賒帳卡片容器 -->
-        <main id="ledger-list-container"
-            class="flex-1 p-8 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar items-start content-start">
-        </main>
+        <main id="ledger-list-container" class="flex-1 p-8 grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto overscroll-contain custom-scrollbar items-start content-start"></main>
     </div>
 
     <!-- View 3: 每日查帳與明細介面 -->
     <div id="audit-view" class="hidden flex-col h-full w-full bg-surface z-50 absolute top-0 left-0">
-        <header class="bg-indigo-900 text-white p-6 flex flex-col shadow-md">
-            <!-- 標題與總計列 -->
+        <header class="bg-indigo-900 text-white p-6 flex flex-col shadow-md shrink-0">
             <div class="flex justify-between items-center mb-4">
                 <div class="flex items-center space-x-6">
                     <h1 class="text-4xl font-bold tracking-wider">📊 每日查帳與明細</h1>
                     <span id="audit-total-sales" class="text-3xl font-black text-yellow-300">總計: $0</span>
                 </div>
-                <button id="btn-back-checkout-audit"
-                    class="bg-gray-600 text-white px-8 py-3 rounded-xl text-2xl font-bold shadow-md hover:bg-gray-500 active:scale-95 transition-transform">
-                    ⬅️ 返回收銀台
-                </button>
+                <button id="btn-back-checkout-audit" class="bg-gray-600 text-white px-8 py-3 rounded-xl text-2xl font-bold shadow-md hover:bg-gray-500 active:scale-95 transition-transform">⬅️ 返回</button>
             </div>
-            <!-- 🚀 新增：長輩友善日期過濾列 -->
             <div class="flex items-center bg-indigo-800 p-4 rounded-xl border-2 border-indigo-700 space-x-4">
                 <span class="text-xl font-bold text-indigo-200">📆 查帳日期：</span>
-                <button id="btn-audit-today"
-                    class="bg-brand text-white px-6 py-3 rounded-lg text-xl font-bold hover:bg-blue-600 active:scale-95 shadow border-2 border-blue-400 transition-colors">今日</button>
-                <button id="btn-audit-yesterday"
-                    class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg text-xl font-bold hover:bg-gray-300 active:scale-95 shadow border-2 border-gray-400 transition-colors">昨日</button>
+                <button id="btn-audit-today" class="bg-brand text-white px-6 py-3 rounded-lg text-xl font-bold hover:bg-blue-600 active:scale-95 shadow border-2 border-blue-400 transition-colors">今日</button>
+                <button id="btn-audit-yesterday" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg text-xl font-bold hover:bg-gray-300 active:scale-95 shadow border-2 border-gray-400 transition-colors">昨日</button>
                 <div class="flex items-center space-x-2 ml-auto">
                     <span class="text-xl font-bold text-indigo-200">🔍 自訂日期：</span>
-                    <input type="date" id="input-audit-date"
-                        class="bg-white text-gray-800 px-4 py-3 rounded-lg text-xl font-bold border-2 border-indigo-400 focus:outline-none focus:ring-4 focus:ring-brand">
+                    <input type="date" id="input-audit-date" class="bg-white text-gray-800 px-4 py-3 rounded-lg text-xl font-bold border-2 border-indigo-400 focus:outline-none focus:ring-4 focus:ring-brand">
                 </div>
             </div>
         </header>
-        <main id="audit-list-container"
-            class="flex-1 p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar items-start content-start">
-        </main>
+        <main id="audit-list-container" class="flex-1 p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto overscroll-contain custom-scrollbar items-start content-start"></main>
     </div>
 
     <!-- Modals -->
-    <div id="change-modal"
-        class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-[100] flex-col items-center justify-center select-none">
-        <div
-            class="bg-white rounded-3xl p-12 text-center shadow-2xl border-8 border-success min-w-[60vw] flex flex-col items-center">
+    <div id="change-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-[100] flex-col items-center justify-center select-none">
+        <div class="bg-white rounded-3xl p-12 text-center shadow-2xl border-8 border-success min-w-[60vw] flex flex-col items-center">
             <h2 class="text-6xl font-extrabold text-gray-800 mb-8">請找零</h2>
-            <div id="change-amount-display"
-                class="text-[15rem] font-black text-success leading-none mb-12 tracking-tighter">$0</div>
-            <button id="btn-close-modal"
-                class="w-full bg-success text-white text-5xl font-bold py-8 rounded-2xl active:scale-95 transition-transform hover:bg-green-600 shadow-lg">確認完成
-                (迎接下一位)</button>
+            <div id="change-amount-display" class="text-[10rem] lg:text-[15rem] font-black text-success leading-none mb-12 tracking-tighter">$0</div>
+            <button id="btn-close-modal" class="w-full bg-success text-white text-4xl lg:text-5xl font-bold py-8 rounded-2xl active:scale-95 transition-transform hover:bg-green-600 shadow-lg">確認完成</button>
         </div>
     </div>
 
-    <div id="confirm-menu-modal"
-        class="hidden fixed inset-0 bg-gray-900 bg-opacity-80 z-[110] flex-col items-center justify-center select-none">
-        <div
-            class="bg-white rounded-3xl p-8 text-center shadow-2xl border-4 border-gray-700 min-w-[50vw] flex flex-col items-center space-y-6">
-            <h2 class="text-4xl font-extrabold text-gray-800 border-b-4 border-gray-200 pb-4 w-full">請選擇您要執行的動作</h2>
+    <div id="confirm-menu-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-80 z-[110] flex-col items-center justify-center select-none">
+        <div class="bg-white rounded-3xl p-8 text-center shadow-2xl border-4 border-gray-700 w-11/12 max-w-2xl flex flex-col items-center space-y-6">
+            <h2 class="text-3xl font-extrabold text-gray-800 border-b-4 border-gray-200 pb-4 w-full">請選擇您要執行的動作</h2>
             <div class="grid grid-cols-2 gap-4 w-full">
-                <button id="btn-confirm-custom"
-                    class="bg-gray-100 p-8 rounded-xl text-3xl font-bold hover:bg-blue-100 border-2 border-gray-300 shadow-sm active:scale-95 text-gray-800">自訂商品</button>
-                <button id="btn-confirm-egg"
-                    class="bg-gray-100 p-8 rounded-xl text-3xl font-bold hover:bg-blue-100 border-2 border-gray-300 shadow-sm active:scale-95 text-gray-800">秤重雞蛋</button>
-                <button id="btn-confirm-ledger"
-                    class="bg-yellow-500 p-8 rounded-xl text-3xl font-bold hover:bg-yellow-400 border-2 border-yellow-600 shadow-sm active:scale-95 text-black">掛帳
-                    / 賒帳</button>
-                <button id="btn-confirm-cash"
-                    class="bg-success p-8 rounded-xl text-3xl font-bold hover:bg-green-500 border-2 border-green-700 shadow-sm active:scale-95 text-white">現金結帳</button>
+                <button id="btn-confirm-custom" class="bg-gray-100 p-6 rounded-xl text-2xl font-bold hover:bg-blue-100 border-2 border-gray-300 shadow-sm active:scale-95 text-gray-800">自訂商品</button>
+                <button id="btn-confirm-egg" class="bg-gray-100 p-6 rounded-xl text-2xl font-bold hover:bg-blue-100 border-2 border-gray-300 shadow-sm active:scale-95 text-gray-800">秤重雞蛋</button>
+                <button id="btn-confirm-ledger" class="bg-yellow-500 p-6 rounded-xl text-2xl font-bold hover:bg-yellow-400 border-2 border-yellow-600 shadow-sm active:scale-95 text-black">掛帳/賒帳</button>
+                <button id="btn-confirm-cash" class="bg-success p-6 rounded-xl text-2xl font-bold hover:bg-green-500 border-2 border-green-700 shadow-sm active:scale-95 text-white">現金結帳</button>
             </div>
-            <button id="btn-close-confirm"
-                class="mt-4 w-full bg-gray-200 text-gray-600 text-2xl font-bold py-5 rounded-xl hover:bg-gray-300 active:scale-95">取消
-                (返回)</button>
+            <button id="btn-close-confirm" class="mt-4 w-full bg-gray-200 text-gray-600 text-xl font-bold py-4 rounded-xl hover:bg-gray-300 active:scale-95">取消 (返回)</button>
         </div>
     </div>
 
-    <div id="customer-modal"
-        class="hidden fixed inset-0 bg-gray-900 bg-opacity-85 z-[120] flex-col items-center justify-center select-none">
-        <div
-            class="bg-white rounded-3xl p-8 text-center shadow-2xl border-4 border-warning w-[60vw] max-h-[80vh] flex flex-col">
-            <h2 class="text-4xl font-extrabold text-gray-800 border-b-4 border-gray-200 pb-4 mb-6">✍️ 請選擇掛帳顧客</h2>
-            <div id="customer-list-container"
-                class="grid grid-cols-3 gap-4 overflow-y-auto custom-scrollbar flex-1 p-2 min-h-[40vh] content-start">
-            </div>
-            <div class="mt-8 flex space-x-4">
-                <button id="btn-add-customer"
-                    class="flex-1 bg-brand text-white text-3xl font-bold py-6 rounded-xl hover:bg-blue-600 active:scale-95 shadow-md border-2 border-blue-700">➕
-                    新增顧客</button>
-                <button id="btn-close-customer"
-                    class="flex-1 bg-gray-200 text-gray-700 text-3xl font-bold py-6 rounded-xl hover:bg-gray-300 active:scale-95 shadow-md border-2 border-gray-400">取消
-                    (返回)</button>
+    <div id="customer-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-85 z-[120] flex-col items-center justify-center select-none">
+        <div class="bg-white rounded-3xl p-8 text-center shadow-2xl border-4 border-warning w-11/12 max-w-4xl max-h-[80vh] flex flex-col">
+            <h2 class="text-4xl font-extrabold text-gray-800 border-b-4 border-gray-200 pb-4 mb-6 shrink-0">✍️ 請選擇掛帳顧客</h2>
+            <div id="customer-list-container" class="grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto overscroll-contain custom-scrollbar flex-1 p-2 min-h-[40vh] content-start"></div>
+            <div class="mt-8 flex space-x-4 shrink-0">
+                <button id="btn-add-customer" class="flex-1 bg-brand text-white text-2xl font-bold py-4 rounded-xl hover:bg-blue-600 active:scale-95 shadow-md">➕ 新增顧客</button>
+                <button id="btn-close-customer" class="flex-1 bg-gray-200 text-gray-700 text-2xl font-bold py-4 rounded-xl hover:bg-gray-300 active:scale-95 shadow-md border-2 border-gray-400">取消</button>
             </div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- 還款輸入選單 (Repayment Modal)               -->
-    <!-- ========================================== -->
-    <div id="repay-modal"
-        class="hidden fixed inset-0 bg-gray-900 bg-opacity-90 z-[130] flex-col items-center justify-center select-none">
-        <div class="bg-white rounded-3xl p-8 text-center shadow-2xl border-4 border-brand w-[40vw] flex flex-col">
-            <h2 class="text-4xl font-extrabold text-gray-800 border-b-4 border-gray-200 pb-4 mb-4">💰 顧客還款</h2>
+    <!-- 還款輸入選單 -->
+    <div id="repay-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-90 z-[130] flex-col items-center justify-center select-none">
+        <div class="bg-white rounded-3xl p-8 text-center shadow-2xl border-4 border-brand w-11/12 max-w-md flex flex-col">
+            <h2 class="text-3xl font-extrabold text-gray-800 border-b-4 border-gray-200 pb-4 mb-4">💰 顧客還款</h2>
             <div class="mb-4">
-                <span class="text-2xl text-gray-500">顧客：</span>
-                <span id="repay-customer-name" class="text-3xl font-bold text-brand"></span>
+                <span class="text-xl text-gray-500">顧客：</span><span id="repay-customer-name" class="text-2xl font-bold text-brand ml-2"></span>
             </div>
             <div class="mb-6">
-                <span class="text-2xl text-gray-500">目前總欠款：</span>
-                <span id="repay-current-debt" class="text-4xl font-black text-danger"></span>
+                <span class="text-xl text-gray-500">目前總欠款：</span><span id="repay-current-debt" class="text-3xl font-black text-danger ml-2"></span>
             </div>
-
-            <!-- 簡易數字輸入區 -->
-            <div
-                class="bg-gray-100 rounded-xl p-4 border-2 border-gray-200 mb-6 flex justify-between items-center h-20">
-                <span class="text-gray-400 text-2xl">還款金額:</span>
-                <span id="repay-input-display" class="text-5xl font-mono font-bold text-success"></span>
+            <div class="bg-gray-100 rounded-xl p-3 border-2 border-gray-200 mb-6 flex justify-between items-center h-16">
+                <span class="text-gray-400 text-xl">還款金額:</span>
+                <span id="repay-input-display" class="text-4xl font-mono font-bold text-success"></span>
             </div>
-
-            <div class="grid grid-cols-3 gap-3 mb-6">
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">7</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">8</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">9</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">4</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">5</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">6</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">1</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">2</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">3</button>
-                <button
-                    class="btn-repay-numpad bg-red-100 text-red-600 rounded-xl text-3xl font-bold py-4 hover:bg-red-200 active:scale-95">C</button>
-                <button
-                    class="btn-repay-numpad bg-gray-200 rounded-xl text-3xl font-bold py-4 hover:bg-gray-300 active:scale-95">0</button>
-                <button id="btn-repay-full"
-                    class="bg-orange-100 text-orange-600 rounded-xl text-2xl font-bold py-4 hover:bg-orange-200 active:scale-95 border-2 border-orange-300">全額結清</button>
+            <div class="grid grid-cols-3 gap-2 mb-6">
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">7</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">8</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">9</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">4</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">5</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">6</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">1</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">2</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">3</button>
+                <button class="btn-repay-numpad bg-red-100 text-red-600 rounded-xl text-2xl font-bold py-3 hover:bg-red-200 active:scale-95">C</button>
+                <button class="btn-repay-numpad bg-gray-200 rounded-xl text-2xl font-bold py-3 hover:bg-gray-300 active:scale-95">0</button>
+                <button id="btn-repay-full" class="bg-orange-100 text-orange-600 rounded-xl text-xl font-bold py-3 hover:bg-orange-200 active:scale-95 border-2 border-orange-300">結清</button>
             </div>
-
-            <div class="flex space-x-4">
-                <button id="btn-close-repay"
-                    class="flex-1 bg-gray-300 text-gray-700 text-2xl font-bold py-5 rounded-xl hover:bg-gray-400 active:scale-95">取消</button>
-                <button id="btn-confirm-repay"
-                    class="flex-1 bg-success text-white text-3xl font-bold py-5 rounded-xl hover:bg-green-600 active:scale-95 shadow-md">確認還款</button>
+            <div class="flex space-x-3">
+                <button id="btn-close-repay" class="flex-1 bg-gray-300 text-gray-700 text-xl font-bold py-4 rounded-xl hover:bg-gray-400 active:scale-95">取消</button>
+                <button id="btn-confirm-repay" class="flex-1 bg-success text-white text-2xl font-bold py-4 rounded-xl hover:bg-green-600 active:scale-95 shadow-md">確認還款</button>
             </div>
         </div>
     </div>
-    <!-- ========================================== -->
-    <!-- 顧客歷史明細選單 (History Modal)             -->
-    <!-- ========================================== -->
-    <div id="history-modal"
-        class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-[140] flex-col items-center justify-center select-none">
-        <div class="bg-white rounded-3xl p-8 shadow-2xl border-4 border-indigo-500 w-[70vw] max-h-[85vh] flex flex-col">
 
-            <!-- 標頭區 -->
-            <div class="flex justify-between items-end border-b-4 border-gray-200 pb-4 mb-4">
+    <!-- 顧客歷史明細選單 -->
+    <div id="history-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-[140] flex-col items-center justify-center select-none">
+        <div class="bg-white rounded-3xl p-8 shadow-2xl border-4 border-indigo-500 w-11/12 max-w-3xl max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-end border-b-4 border-gray-200 pb-4 mb-4 shrink-0">
                 <div>
-                    <h2 class="text-4xl font-extrabold text-gray-800 mb-2">📄 顧客帳本明細</h2>
-                    <span id="history-customer-name" class="text-3xl font-bold text-indigo-600"></span>
+                    <h2 class="text-3xl font-extrabold text-gray-800 mb-2">📄 顧客帳本明細</h2>
+                    <span id="history-customer-name" class="text-2xl font-bold text-indigo-600"></span>
                 </div>
                 <div class="text-right">
-                    <span class="text-xl text-gray-500 font-bold block">目前總欠款</span>
-                    <span id="history-total-debt" class="text-5xl font-black text-danger"></span>
+                    <span class="text-lg text-gray-500 font-bold block">總欠款</span>
+                    <span id="history-total-debt" class="text-4xl font-black text-danger"></span>
                 </div>
             </div>
-
-            <!-- 明細清單容器 -->
-            <div id="history-list-container"
-                class="flex-1 overflow-y-auto custom-scrollbar space-y-3 p-2 bg-gray-50 rounded-xl border-2 border-gray-100 shadow-inner min-h-[40vh]">
-                <!-- 預留給 View 動態渲染 -->
-            </div>
-
-            <!-- 底部按鈕 -->
-            <div class="mt-6 pt-4 border-t-2 border-gray-200">
-                <button id="btn-close-history"
-                    class="w-full bg-gray-300 text-gray-800 text-3xl font-bold py-5 rounded-xl hover:bg-gray-400 active:scale-95 shadow-md">關閉明細</button>
+            <div id="history-list-container" class="flex-1 overflow-y-auto overscroll-contain custom-scrollbar space-y-3 p-2 bg-gray-50 rounded-xl border-2 border-gray-100 shadow-inner min-h-[40vh]"></div>
+            <div class="mt-6 pt-4 border-t-2 border-gray-200 shrink-0">
+                <button id="btn-close-history" class="w-full bg-gray-300 text-gray-800 text-2xl font-bold py-4 rounded-xl hover:bg-gray-400 active:scale-95 shadow-md">關閉明細</button>
             </div>
         </div>
     </div>
+
+    <!-- 📦 商品建檔/編輯 Modal -->
+    <div id="modal-product-manager" class="fixed inset-0 bg-black bg-opacity-60 hidden justify-center items-center z-50">
+        <div class="bg-white w-11/12 max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] lg:max-h-[90vh]">
+            <div class="bg-purple-700 text-white p-5 flex justify-between items-center shrink-0">
+                <h2 class="text-3xl font-extrabold">📦 商品建檔與設定</h2>
+                <button id="btn-close-product-manager" class="text-white text-5xl font-black leading-none hover:text-gray-300">&times;</button>
+            </div>
+            
+            <!-- 🚀 加入 overscroll-contain 與 -webkit-overflow-scrolling 防禦 iOS 背景滑動 -->
+            <div class="p-5 lg:p-8 overflow-y-auto overscroll-contain custom-scrollbar flex-1 bg-gray-50">
+                
+                <div class="flex flex-col mb-6 bg-purple-100 p-4 rounded-xl space-y-4 shrink-0">
+                    <div class="flex flex-wrap gap-3 items-center">
+                        <input type="text" id="input-prod-barcode" class="flex-1 min-w-[200px] border-2 border-purple-300 p-3 rounded-xl text-xl font-bold focus:outline-none focus:border-purple-600 uppercase" placeholder="請掃描或輸入商品條碼...">
+                        <button id="btn-camera-scan" class="bg-blue-600 text-white px-5 py-3 rounded-xl text-lg font-bold hover:bg-blue-700 shadow-md whitespace-nowrap">📷 鏡頭</button>
+                        <button id="btn-search-product" class="bg-purple-600 text-white px-6 py-3 rounded-xl text-lg font-bold hover:bg-purple-700 shadow-md whitespace-nowrap">🔍 讀取</button>
+                        <button id="btn-sync-cloud" class="bg-indigo-600 text-white px-5 py-3 rounded-xl text-lg font-bold hover:bg-indigo-700 shadow-md transition-colors flex items-center whitespace-nowrap">
+                            <span id="sync-icon" class="mr-2">☁️</span> 下載最新商品
+                        </button>
+                    </div>
+                    <div id="camera-reader-container" class="hidden flex-col items-center bg-black rounded-xl overflow-hidden w-full max-w-md mx-auto">
+                        <div id="camera-reader" class="w-full h-64"></div>
+                        <button id="btn-stop-camera" class="w-full bg-red-600 text-white py-3 text-xl font-bold hover:bg-red-700">停止掃描</button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-bold text-gray-700 border-b-2 border-gray-200 pb-2">📝 基本資料</h3>
+                        <div>
+                            <label class="block text-gray-600 text-base font-bold mb-1">商品名稱 (必填)</label>
+                            <input type="text" id="input-prod-name" class="w-full border-2 border-gray-300 p-3 rounded-lg text-xl font-bold focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 text-base font-bold mb-1">進貨/廠商定義名稱</label>
+                            <input type="text" id="input-prod-supplier" class="w-full border-2 border-gray-300 p-3 rounded-lg text-lg focus:border-purple-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-gray-600 text-base font-bold mb-1">進價成本</label>
+                                <input type="number" id="input-prod-cost" class="w-full border-2 border-gray-300 p-3 rounded-lg text-xl font-bold text-danger focus:border-purple-500">
+                            </div>
+                            <div>
+                                <label class="block text-gray-600 text-base font-bold mb-1">預設售價 (必填)</label>
+                                <input type="number" id="input-prod-price" class="w-full border-2 border-gray-300 p-3 rounded-lg text-xl font-bold text-success focus:border-purple-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 bg-white p-4 rounded-xl shadow-sm border-2 border-dashed border-gray-300">
+                        <h3 class="text-xl font-bold text-gray-700 border-b-2 border-gray-200 pb-2">🏷️ 促銷條件設定</h3>
+                        <div class="mb-4 bg-purple-50 p-3 rounded-lg border-2 border-purple-200">
+                            <label class="block text-purple-800 text-base font-bold mb-1">多重優惠計算方式</label>
+                            <select id="select-promo-strategy" class="w-full border-2 border-purple-300 p-2 rounded-lg text-lg bg-white focus:border-purple-500 font-bold">
+                                <option value="BEST">擇優計算 (系統自動取最便宜)</option>
+                                <option value="STACK">合併計算 (優惠一與二疊加折抵)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-gray-800 text-base font-bold">優惠一</label>
+                            <select id="select-promo1-type" class="w-full border-2 border-gray-300 p-2 rounded-lg text-lg bg-gray-50">
+                                <option value="NONE">無優惠</option>
+                                <option value="QTY_PRICE">滿件特價 (例: 3件100元)</option>
+                                <option value="QTY_DISCOUNT">滿件打折 (例: 2件8折)</option>
+                            </select>
+                            <div class="flex space-x-2">
+                                <input type="number" id="input-promo1-qty" placeholder="滿幾件" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-base font-bold">
+                                <input type="number" id="input-promo1-val" placeholder="特價/折數" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-base font-bold">
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-4 border-t-2 border-gray-100">
+                            <label class="block text-gray-800 text-base font-bold">優惠二</label>
+                            <select id="select-promo2-type" class="w-full border-2 border-gray-300 p-2 rounded-lg text-lg bg-gray-50">
+                                <option value="NONE">無優惠</option>
+                                <option value="QTY_PRICE">滿件特價</option>
+                                <option value="QTY_DISCOUNT">滿件打折</option>
+                            </select>
+                            <div class="flex space-x-2">
+                                <input type="number" id="input-promo2-qty" placeholder="滿幾件" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-base font-bold">
+                                <input type="number" id="input-promo2-val" placeholder="特價/折數" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-base font-bold">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gray-100 p-5 flex space-x-4 shrink-0">
+                <button id="btn-cancel-product" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl text-xl font-bold hover:bg-gray-400 active:scale-95 transition-transform">取消</button>
+                <button id="btn-save-product" class="flex-1 bg-purple-600 text-white py-3 rounded-xl text-xl font-bold hover:bg-purple-700 shadow-md active:scale-95 transition-transform">💾 儲存商品設定</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 腳本載入區 -->
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <script src="js/config.js"></script>
@@ -345,148 +356,20 @@
     <script src="js/controller.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- 🚀 註冊 PWA Service Worker (具備強制更新與自動重整機制) -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => {
-                        console.log('[系統] PWA 離線引擎註冊成功:', reg.scope);
-
-                        // 每次載入時，強制請瀏覽器去伺服器檢查 service-worker.js 有沒有更新
-                        reg.update();
-                    })
+                    .then(reg => { reg.update(); })
                     .catch(err => console.error('[系統] PWA 註冊失敗:', err));
             });
-
-            // 🚀 核心防呆：監聽 Service Worker 的控制權轉移
-            // 當發現新的 Service Worker 接管時 (代表 cache 已經更新完成)
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (refreshing) return;
                 refreshing = true;
-                console.warn('[系統] 偵測到系統核心更新，正在重新載入最新版本...');
-                // 強制重新整理頁面，確保長輩使用的是最新版的 JS 邏輯
                 window.location.reload();
             });
         }
     </script>
-    <!-- 📦 商品建檔/編輯 Modal -->
-    <div id="modal-product-manager" class="fixed inset-0 bg-black bg-opacity-60 hidden justify-center items-center z-50">
-        <div class="bg-white w-11/12 max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            
-            <!-- 標題區 -->
-            <div class="bg-purple-700 text-white p-6 flex justify-between items-center">
-                <h2 class="text-4xl font-extrabold">📦 商品建檔與設定</h2>
-                <button id="btn-close-product-manager" class="text-white text-5xl font-black leading-none hover:text-gray-300">&times;</button>
-            </div>
-            
-            <!-- 內容滾動區 -->
-            <div class="p-8 overflow-y-auto flex-1 bg-gray-50">
-               <!-- 🚀 終極整合版：條碼搜尋與雲端工具區 -->
-                <div class="flex flex-col mb-8 bg-purple-100 p-4 rounded-xl space-y-4">
-                    
-                    <!-- 搜尋與按鈕列 -->
-                    <div class="flex flex-wrap gap-4 items-center">
-                        <input type="text" id="input-prod-barcode" class="flex-1 min-w-[200px] border-2 border-purple-300 p-4 rounded-xl text-2xl font-bold focus:outline-none focus:border-purple-600 uppercase" placeholder="請掃描或輸入商品條碼...">
-                        
-                        <!-- 相機按鈕 -->
-                        <button id="btn-camera-scan" class="bg-blue-600 text-white px-6 py-4 rounded-xl text-xl font-bold hover:bg-blue-700 shadow-md whitespace-nowrap">📷 鏡頭</button>
-                        
-                        <!-- 搜尋按鈕 -->
-                        <button id="btn-search-product" class="bg-purple-600 text-white px-8 py-4 rounded-xl text-xl font-bold hover:bg-purple-700 shadow-md whitespace-nowrap">🔍 讀取</button>
-                        
-                        <!-- 雲端同步按鈕 -->
-                        <button id="btn-sync-cloud" class="bg-indigo-600 text-white px-6 py-4 rounded-xl text-xl font-bold hover:bg-indigo-700 shadow-md transition-colors flex items-center whitespace-nowrap">
-                            <span id="sync-icon" class="mr-2">☁️</span> 下載最新商品
-                        </button>
-                    </div>
-                    
-                    <!-- 📷 相機畫面預覽區 (預設隱藏) -->
-                    <div id="camera-reader-container" class="hidden flex-col items-center bg-black rounded-xl overflow-hidden w-full max-w-md mx-auto">
-                        <div id="camera-reader" class="w-full h-64"></div>
-                        <button id="btn-stop-camera" class="w-full bg-red-600 text-white py-3 text-xl font-bold hover:bg-red-700">停止掃描</button>
-                    </div>
-                </div>
-                
-                <!-- 🚀 補回遺失的左右雙欄 Grid 排版容器 -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
-                    <!-- 左欄：基本資料區 -->
-                    <div class="space-y-4">
-                        <h3 class="text-2xl font-bold text-gray-700 border-b-2 border-gray-200 pb-2">📝 基本資料</h3>
-                        <div>
-                            <label class="block text-gray-600 text-lg font-bold mb-1">商品名稱 (必填)</label>
-                            <input type="text" id="input-prod-name" class="w-full border-2 border-gray-300 p-3 rounded-lg text-2xl font-bold focus:border-purple-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-600 text-lg font-bold mb-1">進貨/廠商定義名稱</label>
-                            <input type="text" id="input-prod-supplier" class="w-full border-2 border-gray-300 p-3 rounded-lg text-xl focus:border-purple-500">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-gray-600 text-lg font-bold mb-1">進價成本</label>
-                                <input type="number" id="input-prod-cost" class="w-full border-2 border-gray-300 p-3 rounded-lg text-2xl font-bold text-danger focus:border-purple-500">
-                            </div>
-                            <div>
-                                <label class="block text-gray-600 text-lg font-bold mb-1">預設售價 (必填)</label>
-                                <input type="number" id="input-prod-price" class="w-full border-2 border-gray-300 p-3 rounded-lg text-2xl font-bold text-success focus:border-purple-500">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 右欄：促銷設定區 -->
-                    <div class="space-y-4 bg-white p-4 rounded-xl shadow-sm border-2 border-dashed border-gray-300">
-                        <h3 class="text-2xl font-bold text-gray-700 border-b-2 border-gray-200 pb-2">🏷️ 促銷條件設定</h3>
-                        
-                        <!-- 多重優惠計算方式 -->
-                        <div class="mb-4 bg-purple-50 p-3 rounded-lg border-2 border-purple-200">
-                            <label class="block text-purple-800 text-lg font-bold mb-1">多重優惠計算方式</label>
-                            <select id="select-promo-strategy" class="w-full border-2 border-purple-300 p-2 rounded-lg text-xl bg-white focus:border-purple-500 font-bold">
-                                <option value="BEST">擇優計算 (系統自動取最便宜)</option>
-                                <option value="STACK">合併計算 (優惠一與二疊加折抵)</option>
-                            </select>
-                        </div>
-                        
-                        <!-- 優惠一 -->
-                        <div class="space-y-2">
-                            <label class="block text-gray-800 text-lg font-bold">優惠一</label>
-                            <select id="select-promo1-type" class="w-full border-2 border-gray-300 p-2 rounded-lg text-xl bg-gray-50">
-                                <option value="NONE">無優惠</option>
-                                <option value="QTY_PRICE">滿件特價 (例: 3件100元)</option>
-                                <option value="QTY_DISCOUNT">滿件打折 (例: 2件8折)</option>
-                            </select>
-                            <div class="flex space-x-2">
-                                <input type="number" id="input-promo1-qty" placeholder="滿幾件" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-lg font-bold">
-                                <input type="number" id="input-promo1-val" placeholder="特價/折數(例:85或5)" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-lg font-bold">
-                            </div>
-                        </div>
-
-                        <!-- 優惠二 -->
-                        <div class="space-y-2 pt-4 border-t-2 border-gray-100">
-                            <label class="block text-gray-800 text-lg font-bold">優惠二</label>
-                            <select id="select-promo2-type" class="w-full border-2 border-gray-300 p-2 rounded-lg text-xl bg-gray-50">
-                                <option value="NONE">無優惠</option>
-                                <option value="QTY_PRICE">滿件特價</option>
-                                <option value="QTY_DISCOUNT">滿件打折</option>
-                            </select>
-                            <div class="flex space-x-2">
-                                <input type="number" id="input-promo2-qty" placeholder="滿幾件" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-lg font-bold">
-                                <input type="number" id="input-promo2-val" placeholder="特價/折數(例:85或5)" class="w-1/2 border-2 border-gray-300 p-2 rounded-lg text-lg font-bold">
-                            </div>
-                        </div>
-                    </div>
-                </div> <!-- 結尾：雙欄 Grid -->
-            </div> <!-- 結尾：內容滾動區 -->
-            
-            <!-- 底部按鈕區 (現在乖乖待在卡片內了！) -->
-            <div class="bg-gray-100 p-6 flex space-x-4">
-                <button id="btn-cancel-product" class="flex-1 bg-gray-300 text-gray-700 py-4 rounded-xl text-2xl font-bold hover:bg-gray-400 active:scale-95 transition-transform">取消</button>
-                <button id="btn-save-product" class="flex-1 bg-purple-600 text-white py-4 rounded-xl text-2xl font-bold hover:bg-purple-700 shadow-md active:scale-95 transition-transform">💾 儲存商品設定</button>
-            </div>
-            
-        </div>
-    </div>
 </body>
-
 </html>
