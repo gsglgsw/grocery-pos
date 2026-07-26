@@ -1,0 +1,44 @@
+/* css/style.css */
+
+/* 徹底禁止所有文字選取，防止長輩連續點擊時觸發系統原生的反白與選單 */
+* {
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10 and IE 11 */
+    user-select: none; /* Standard syntax */
+    -webkit-tap-highlight-color: transparent; /* 取消手機版點擊閃爍 */
+}
+
+/* 自定義隱藏滾動條，但保留滾動功能 (針對購物車清單) */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 0px;
+    background: transparent; 
+}
+.custom-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE 10+ */
+}
+/* 🚀 Phase 8: 終極觸控與機台模式防呆 */
+body {
+    /* 1. 絕對禁止使用者選取文字 */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    /* 2. 禁用 iOS 的長按彈出選單 (拷貝/查詢/分享) */
+    -webkit-touch-callout: none;
+
+    /* 3. 防止快速雙擊導致畫面局部放大 */
+    touch-action: manipulation;
+
+    /* 4. 消除點擊時的半透明灰色閃爍 (iOS 特有) */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 讓 input 欄位保留選取與輸入能力，以免無法打字 */
+input, textarea {
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
