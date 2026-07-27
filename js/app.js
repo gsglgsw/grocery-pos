@@ -1,25 +1,17 @@
 /**
  * 系統進入點 (Entry Point)
- * 負責實例化 MVC 物件，並處理全局初始設定 (如 Service Worker 註冊與強制快取更新指令)。
  */
 document.addEventListener('DOMContentLoaded', () => {
     const appModel = new PosModel();
     const appView = new PosView();
     const appController = new PosController(appModel, appView);
     
-    console.log('系統初始化完成。MVC 架構已啟動。');
+    console.log('[系統] 初始化完成。MVC 架構已啟動。');
     
-    // TODO Phase 4: 在此處註冊 Service Worker 並實作 Force-Sync 機制以符合維運需求。
-});
-// 🚀 Phase 8: 系統層級防呆攔截
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. 徹底禁用右鍵選單 (包含平板長按呼叫的選單)
+    // 1. 徹底禁用右鍵選單 (包含平板長按呼叫的文字選取選單)
     document.addEventListener('contextmenu', event => event.preventDefault());
 
-    // 2. 阻擋 iOS Safari 的橡皮筋邊緣回彈效果 (Overscroll)
-    document.body.addEventListener('touchmove', function(e) {
-        if (e.target.tagName !== 'INPUT' && !e.target.closest('.custom-scrollbar')) {
-            e.preventDefault();
-        }
-    }, { passive: false });
+    // 🚀 Tech Lead 修正：移除舊版的 touchmove preventDefault。
+    // 觸控防滑動已全權交由 index.html 的 CSS (overscroll-behavior) 處理，
+    // 確保 iPad 上的 click 事件不會被誤殺，恢復絲滑的觸控手感！
 });

@@ -22,6 +22,18 @@ class PosModel {
         this.dbCustomers = localforage.createInstance({ name: 'dbCustomers' });
     }
 
+    _getUnifiedDisplayTime() {
+        const date = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const YYYY = date.getFullYear();
+        const MM = pad(date.getMonth() + 1);
+        const DD = pad(date.getDate());
+        const HH = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        const ss = pad(date.getSeconds());
+        return `${YYYY}-${MM}-${DD} ${HH}:${mm}:${ss}`; // 保證輸出 2026-07-27 18:06:15
+    }
+
    // ==========================================
     // 📦 商品資料庫 (dbProducts) 核心邏輯
     // ==========================================
@@ -353,7 +365,7 @@ class PosModel {
     async updateLedgerDebt(customer, amount, type = 'CREDIT') {
         try {
             const timestamp = Date.now();
-            const displayTime = new Date().toLocaleString('zh-TW', { hour12: false });
+            const displayTime = this._getUnifiedDisplayTime();
             
             const ledgerRecord = {
                 timestamp: timestamp,
@@ -393,7 +405,7 @@ class PosModel {
         const cartReport = this.calculateCart();
         const orderId = `ORD-${Date.now()}`;
         const timestamp = Date.now();
-        const displayTime = new Date().toLocaleString('zh-TW', { hour12: false });
+        const displayTime = this._getUnifiedDisplayTime();
 
         const orderData = {
             orderId: orderId,
