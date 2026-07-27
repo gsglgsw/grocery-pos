@@ -31,10 +31,10 @@ class PosController {
 
         // 🚀 更新：傳入相機啟動與停止的控制邏輯
         this.view.bindProductManagerActions(
-            this.handleSearchProduct.bind(this), 
+            this.handleSearchProduct.bind(this),
             this.handleSaveProduct.bind(this),
             this.handleSyncProducts.bind(this),
-            
+
             this.startCameraScanner.bind(this),
             this.stopCameraScanner.bind(this)
         );
@@ -71,18 +71,30 @@ class PosController {
 
         this._initSystemPruning();
         await this.model.initProductsDB();
-        
+
 
         this.initScannerListener();
         this.model.loadCartBackup();
         this.updateView();
     }
 
-async handleSyncProducts() {
+    // 🚀 Phase 8.2 升級：處理全域資料同步，並強制刷新所有視圖 (MVC 嚴格解耦)
+    async handleSyncProducts() {
         try {
-            const count = await this.model.syncProductsFromCloud();
-            alert(`✅ 同步完成！已成功從雲端下載並更新 ${count} 筆商品資料。`);
-            this.updateView(); // 刷新畫面，套用可能的價格變動
+            // 呼叫 Model 執行全域下載
+            const results = await this.model.syncAllDataFromCloud();
+
+            // 顯示詳細的災難復原報告
+            alert(`✅ 災難復原同步完成！\n\n已成功從雲端下載：\n📦 商品資料：${results.products} 筆\n👥 顧客檔案：${results.customers} 筆\n📖 帳本明細：${results.ledgers} 筆\n🧾 近期訂單：${results.orders} 筆`);
+
+            // 🔄 核心架構：資料更新後，嚴格要求重新渲染所有 View 確保狀態一致
+            this.updateView(); // 刷新收銀台與購物車
+
+            const ledgers = await this.model.getLedgerSummary();
+            this.view.renderLedgerList(ledgers); // 刷新賒帳本名單
+
+            await this.loadAuditToday(); // 刷新今日查帳紀錄
+
         } catch (error) {
             alert(`❌ 同步失敗，請檢查網路連線或 API 設定。\n錯誤訊息：${error.message}`);
         }
@@ -112,12 +124,12 @@ async handleSyncProducts() {
             this.view.ledgerView.classList.add('flex');
         });
         this.view.btnBackCheckout.addEventListener('click', () => { this.view.ledgerView.classList.add('hidden'); this.view.ledgerView.classList.remove('flex'); this.view.checkoutView.classList.remove('hidden'); });
-        
-        this.view.btnGoAudit.addEventListener('click', async () => { 
-            await this.loadAuditToday(); 
-            this.view.checkoutView.classList.add('hidden'); 
-            this.view.auditView.classList.remove('hidden'); 
-            this.view.auditView.classList.add('flex'); 
+
+        this.view.btnGoAudit.addEventListener('click', async () => {
+            await this.loadAuditToday();
+            this.view.checkoutView.classList.add('hidden');
+            this.view.auditView.classList.remove('hidden');
+            this.view.auditView.classList.add('flex');
         });
         this.view.btnBackCheckoutAudit.addEventListener('click', () => { this.view.auditView.classList.add('hidden'); this.view.auditView.classList.remove('flex'); this.view.checkoutView.classList.remove('hidden'); });
     }
@@ -134,10 +146,10 @@ async handleSyncProducts() {
             alert('新增失敗，請聯絡系統管理員。');
         }
     }
-// 🚀 整合 Phase 7：獨立新增顧客並直接刷新賒帳本畫面
+    // 🚀 整合 Phase 7：獨立新增顧客並直接刷新賒帳本畫面
     async handleAddCustomerLedger() {
         const name = prompt('請輸入新顧客的姓名或暱稱：\n(例如：王阿姨, 轉角麵攤)');
-        
+
         // 防呆：如果按取消，或沒有輸入文字，就直接終止
         if (!name || name.trim() === '') return;
 
@@ -194,7 +206,7 @@ async handleSyncProducts() {
 
     async triggerLedgerFlow() {
         const cartReport = this.model.calculateCart();
-        if (cartReport.totalAmount === 0 && this.model.cart.length === 0) return; 
+        if (cartReport.totalAmount === 0 && this.model.cart.length === 0) return;
         this.isModalOpen = true;
         const customers = await this.model.getAllCustomers();
         this.view.showCustomerModal(customers);
@@ -202,14 +214,14 @@ async handleSyncProducts() {
 
     handleTenderTop(amount) { this.model.addTenderAmount(amount); this.updateNumpadView(); }
     handleTenderBottom(amount) { this.model.toggleTailAmount(amount); this.updateNumpadView(); }
-    
-    updateNumpadView() { 
-        this.view.renderNumpad(this.model.numpadBuffer); 
+
+    updateNumpadView() {
+        this.view.renderNumpad(this.model.numpadBuffer);
         const currentTotal = this.model.calculateCart().totalAmount;
-        const tenders = this.model.getSmartTenders(currentTotal); 
-        this.view.renderTenders(tenders, this.model.activeTail); 
+        const tenders = this.model.getSmartTenders(currentTotal);
+        this.view.renderTenders(tenders, this.model.activeTail);
     }
-    
+
     handleNumpadInput(val) { if (val === 'C') { this.model.clearNumpad(); } else if (val === '確認') { this.view.showConfirmMenu(); return; } else { this.model.appendNumpad(val); } this.updateNumpadView(); }
 
     // 🚀 升級：處理現金結帳，並廣播找零畫面
@@ -219,7 +231,7 @@ async handleSyncProducts() {
             if (result.reason === 'empty_cart') return;
             if (result.reason === 'insufficient_funds') { this.view.showNumpadError(); return; }
         }
-        
+
         this.isModalOpen = true;
         this.view.showChangeModal(result.change);
 
@@ -262,15 +274,15 @@ async handleSyncProducts() {
         document.addEventListener('keydown', (e) => {
             if (e.isComposing || e.keyCode === 229) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || this.isModalOpen) return;
-            
+
             const now = Date.now();
             if (now - this.lastKeystrokeTime > SCANNER_TIMEOUT_MS) {
-                this.barcodeBuffer = ''; 
+                this.barcodeBuffer = '';
                 this.view.renderBarcodeBuffer(this.barcodeBuffer);
                 this.view.hideSearchSuggestions();
             }
             this.lastKeystrokeTime = now;
-            
+
             if (e.key === 'Enter') {
                 if (this.barcodeBuffer.length > 2) this.processBarcode(this.barcodeBuffer);
                 this.barcodeBuffer = '';
@@ -281,12 +293,12 @@ async handleSyncProducts() {
                 if (this.barcodeBuffer.length > 0) {
                     this.barcodeBuffer = this.barcodeBuffer.slice(0, -1);
                     this.view.renderBarcodeBuffer(this.barcodeBuffer);
-                    this._triggerSmartSearch(this.barcodeBuffer); 
+                    this._triggerSmartSearch(this.barcodeBuffer);
                 }
             } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey) {
                 this.barcodeBuffer += e.key;
                 this.view.renderBarcodeBuffer(this.barcodeBuffer);
-                this._triggerSmartSearch(this.barcodeBuffer); 
+                this._triggerSmartSearch(this.barcodeBuffer);
             }
         });
 
@@ -298,16 +310,16 @@ async handleSyncProducts() {
                     const val = e.target.value.trim();
                     if (val.length > 2) {
                         this.processBarcode(val);
-                        e.target.value = ''; 
+                        e.target.value = '';
                         this.view.hideSearchSuggestions();
                     }
                 }
             });
             this.view.bindSuggestionClick((barcode) => {
                 this.processBarcode(barcode);
-                this.view.inputBarcodeSearch.value = ''; 
+                this.view.inputBarcodeSearch.value = '';
                 this.view.hideSearchSuggestions();
-                this.barcodeBuffer = ''; 
+                this.barcodeBuffer = '';
             });
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('#input-barcode-search') && !e.target.closest('#search-suggestions')) { this.view.hideSearchSuggestions(); }
@@ -326,17 +338,17 @@ async handleSyncProducts() {
     }
 
     // 🚀 關鍵修復：補回被遺漏的 processBarcode 函式
-    async processBarcode(barcode) { 
-        await this.processProductEntry(barcode); 
+    async processBarcode(barcode) {
+        await this.processProductEntry(barcode);
     }
 
     // 🚀 關鍵修復：升級降級機制的 UX，使用原生 Prompt 直接詢問價格
     async processProductEntry(barcode) {
         let result = await this.model.addToCart(barcode);
-        
+
         if (!result.success && result.reason === 'unknown_barcode') {
             const priceStr = prompt(`📦 發現未建檔商品！\n條碼: ${result.barcode}\n\n請直接輸入此商品的「售價」(純數字)：`);
-            if (priceStr === null || priceStr.trim() === '') return; 
+            if (priceStr === null || priceStr.trim() === '') return;
             const customPrice = parseInt(priceStr, 10);
             if (isNaN(customPrice) || customPrice < 0) {
                 alert('❌ 金額輸入錯誤，請重新操作。');
@@ -349,15 +361,15 @@ async handleSyncProducts() {
         if (result.success) { this.updateView(); }
     }
 
-    handleUpdateQty(index, change) { 
-        const currentQty = this.model.cart[index].qty; 
-        this.model.updateQty(index, currentQty + change); 
-        this.updateView(); 
+    handleUpdateQty(index, change) {
+        const currentQty = this.model.cart[index].qty;
+        this.model.updateQty(index, currentQty + change);
+        this.updateView();
     }
 
-async handleQuickKey(barcode) {
+    async handleQuickKey(barcode) {
         const product = await this.model.getProduct(barcode);
-        
+
         // 🚀 防呆攔截：絕不允許靜默失敗
         if (!product) {
             alert(`❌ 系統錯誤：找不到快捷商品檔案 (條碼: ${barcode})！`);
@@ -367,16 +379,16 @@ async handleQuickKey(barcode) {
         let customPrice = null;
         if (product && product.isOpenPrice) {
             customPrice = this.model.getNumpadValue();
-            if (customPrice === null) { 
-                this.view.showNumpadError(); 
-                return; 
+            if (customPrice === null) {
+                this.view.showNumpadError();
+                return;
             }
         }
-        
+
         const result = await this.model.addToCart(barcode, customPrice);
-        if (result.success) { 
-            this.model.clearNumpad(); 
-            this.updateView(); 
+        if (result.success) {
+            this.model.clearNumpad();
+            this.updateView();
         }
     }
 
@@ -403,20 +415,20 @@ async handleQuickKey(barcode) {
 
     async loadAuditToday() {
         const todayStr = this._formatDateStr(new Date());
-        this.view.setAuditDateInput(todayStr); 
+        this.view.setAuditDateInput(todayStr);
         await this._loadAuditData(todayStr);
     }
 
     async loadAuditYesterday() {
         const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1); 
+        yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = this._formatDateStr(yesterday);
         this.view.setAuditDateInput(yesterdayStr);
         await this._loadAuditData(yesterdayStr);
     }
 
     async loadAuditCustomDate(dateStr) {
-        if (!dateStr) return; 
+        if (!dateStr) return;
         await this._loadAuditData(dateStr);
     }
 
@@ -445,11 +457,11 @@ async handleQuickKey(barcode) {
         const result = await this.model.saveProduct(productData);
         if (result.success) {
             alert(`✅ 成功建檔：${productData.name}\n(系統已自動將其加入搜尋預覽資料庫)`);
-            closeCallback(); 
-            
+            closeCallback();
+
             // 🚀 關鍵修復：存檔後強制更新視圖！
             // 這會重新觸發 calculateCart 演算法，並讓購物車裡的商品瞬間套用新的價格與促銷！
-            this.updateView(); 
+            this.updateView();
         } else {
             alert(`❌ 儲存發生錯誤：${result.message}`);
         }
@@ -498,7 +510,7 @@ async handleQuickKey(barcode) {
 
         // 初始化掃描器，指定綁定到 view 上的 div ID
         this.html5QrcodeScanner = new Html5Qrcode("camera-reader");
-        
+
         // 設定掃描參數 (使用後鏡頭，更新率 10fps 節省效能)
         const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
@@ -508,18 +520,18 @@ async handleQuickKey(barcode) {
             (decodedText, decodedResult) => {
                 // 掃描成功的回呼函式
                 console.log(`[系統] 相機掃描成功: ${decodedText}`);
-                
+
                 // 1. 嗶一聲 (UX 體驗)
                 this._playBeepSound();
-                
+
                 // 2. 將條碼填入 input
                 this.view.inputProdBarcode.value = decodedText;
-                
+
                 // 3. 自動停止相機與隱藏 UI
                 this.stopCameraScanner();
                 this.view.cameraReaderContainer.classList.add('hidden');
                 this.view.cameraReaderContainer.classList.remove('flex');
-                
+
                 // 4. 自動觸發搜尋
                 this.handleSearchProduct(decodedText);
             },

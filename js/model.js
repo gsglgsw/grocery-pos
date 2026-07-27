@@ -638,27 +638,50 @@ class PosModel {
         }
     }
 
-    // 🚀 Phase 8.1 新增：從雲端批量下載並覆蓋 IndexedDB
-    async syncProductsFromCloud() {
+    // 🚀 Phase 8.2 升級：全域災難復原同步引擎 (Full Disaster Recovery Sync)
+    async syncAllDataFromCloud() {
         if (!POS_CONFIG.GAS_API_URL) throw new Error('未設定 API URL');
-        try {
-            // 發出 GET 請求抓取資料
-            const response = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_PRODUCTS`);
-            const result = await response.json();
-            
-            if (result.status !== 'success') throw new Error(result.message);
-            
-            const products = result.data;
-            if (!products || products.length === 0) return 0;
+        
+        // 紀錄各項資料的同步筆數，供前端 UI 顯示
+        const results = { products: 0, customers: 0, ledgers: 0, orders: 0 };
 
-            // 採用批次寫入 (Batch Write) 提升效能
-            for (const product of products) {
-                await this.dbProducts.setItem(product.barcode, product);
+        try {
+            // 1. 📦 同步商品庫 (Products)
+            const resProd = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_PRODUCTS`);
+            const dataProd = await resProd.json();
+            if (dataProd.status === 'success' && dataProd.data) {
+                for (const item of dataProd.data) await this.dbProducts.setItem(item.barcode, item);
+                results.products = dataProd.data.length;
             }
-            
-            return products.length; // 回傳成功更新的筆數
+
+            // 2. 👥 同步顧客基本資料 (Customers)
+            const resCust = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_CUSTOMERS`);
+            const dataCust = await resCust.json();
+            if (dataCust.status === 'success' && dataCust.data) {
+                for (const item of dataCust.data) await this.dbCustomers.setItem(item.id, item);
+                results.customers = dataCust.data.length;
+            }
+
+            // 3. 📖 同步顧客帳本明細 (Ledger)
+            const resLedger = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_LEDGER`);
+            const dataLedger = await resLedger.json();
+            if (dataLedger.status === 'success' && dataLedger.data) {
+                // 使用 timestamp 作為鍵值，避免資料覆蓋
+                for (const item of dataLedger.data) await this.dbLedger.setItem(`LEDGER-${item.timestamp}`, item);
+                results.ledgers = dataLedger.data.length;
+            }
+
+            // 4. 🧾 同步近期結帳訂單 (Orders)
+            const resOrders = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_ORDERS`);
+            const dataOrders = await resOrders.json();
+            if (dataOrders.status === 'success' && dataOrders.data) {
+                for (const item of dataOrders.data) await this.dbOrders.setItem(item.orderId, item);
+                results.orders = dataOrders.data.length;
+            }
+
+            return results;
         } catch (error) {
-            console.error('[系統] 雲端同步商品失敗:', error);
+            console.error('[系統] 全域雲端同步失敗:', error);
             throw error;
         }
     }
