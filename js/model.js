@@ -8,18 +8,20 @@ class PosModel {
         this.activeTail = null;
         this.lastCheckoutState = null;
 
+        // 🚀 修復核心 1：補回遺失的種子資料庫，這是快捷鍵的靈魂！
+        this.localDB = {
+            '4710123456789': { name: '統一肉燥麵', price: 18 },
+            '4711234567890': { name: '台灣啤酒', price: 35 },
+            '9990000000001': { name: '自訂商品', price: 0, isOpenPrice: true, isCustom: true },
+            '9990000000002': { name: '秤重雞蛋', price: 0, isOpenPrice: true },
+            'BOTTLE_RETURN': { name: '退公賣局空瓶', price: -5 }
+        };
+
+        // 🚀 修復核心 2：移除重複宣告，並確保所有 Store Name 都有綁定 POS_CONFIG.STORE_NAME
+        this.dbProducts = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'products' });
         this.dbOrders = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'orders' });
         this.dbLedger = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'ledger' });
-        // 🚀 新增：商品資料庫
-        this.dbProducts = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'products' });
-        
-        // 確保以下四個 IndexedDB 都有被正確宣告與實體化
-        this.dbProducts = localforage.createInstance({ name: 'dbProducts' });
-        this.dbOrders = localforage.createInstance({ name: 'dbOrders' });
-        this.dbLedger = localforage.createInstance({ name: 'dbLedger' });
-        
-        // 🚀 核心修復：補上遺漏的顧客資料庫實體宣告
-        this.dbCustomers = localforage.createInstance({ name: 'dbCustomers' });
+        this.dbCustomers = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'customers' });
     }
 
     _getUnifiedDisplayTime() {
