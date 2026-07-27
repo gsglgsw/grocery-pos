@@ -14,7 +14,9 @@ class PosView {
         this.btnGoAudit = document.getElementById('btn-go-audit');
         this.btnBackCheckoutAudit = document.getElementById('btn-back-checkout-audit');
 
-        this.quickKeys = document.querySelectorAll('.grid.grid-cols-3.gap-2 > button');
+        this.btnQuickCustom = document.getElementById('btn-quick-custom');
+        this.btnQuickEgg = document.getElementById('btn-quick-egg');
+        this.btnQuickBottle = document.getElementById('btn-quick-bottle');
         this.numpadDisplay = document.getElementById('numpad-display');
         this.numpadBtns = document.querySelectorAll('.numpad-btn');
         this.tenderContainer = document.getElementById('tender-container');
@@ -247,7 +249,11 @@ class PosView {
     // 基礎事件綁定
     // ==========================================
     bindCartActions(handler) { this.cartListContainer.addEventListener('click', (e) => { const index = e.target.getAttribute('data-index'); if (index === null) return; if (e.target.classList.contains('btn-increase')) handler(parseInt(index), 1); else if (e.target.classList.contains('btn-decrease')) handler(parseInt(index), -1); }); }
-    bindQuickKeys(handler) { this.quickKeys[0].addEventListener('click', () => handler('9990000000001')); this.quickKeys[1].addEventListener('click', () => handler('9990000000002')); this.quickKeys[2].addEventListener('click', () => handler('BOTTLE_RETURN')); }
+    bindQuickKeys(handler) { 
+        if (this.btnQuickCustom) this.btnQuickCustom.addEventListener('click', () => handler('9990000000001')); 
+        if (this.btnQuickEgg) this.btnQuickEgg.addEventListener('click', () => handler('9990000000002')); 
+        if (this.btnQuickBottle) this.btnQuickBottle.addEventListener('click', () => handler('BOTTLE_RETURN')); 
+    }
     bindTenderActions(handlerTop, handlerBottom) { this.tenderContainer.addEventListener('click', (e) => { const btnTop = e.target.closest('.btn-tender-top'); const btnBottom = e.target.closest('.btn-tender-bottom'); if (btnTop) handlerTop(parseInt(btnTop.dataset.amount)); else if (btnBottom) handlerBottom(parseInt(btnBottom.dataset.amount)); }); }
     bindCheckoutAction(handler) { this.btnCheckout.addEventListener('click', handler); }
     bindLedgerCheckoutAction(handler) { this.btnCheckoutLedger.addEventListener('click', handler); }

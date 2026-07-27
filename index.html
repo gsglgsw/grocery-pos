@@ -82,11 +82,11 @@
         <!-- 修改重點：縮小 padding (p-4 -> p-2)，使用 min-h-0 確保 flex 子元素可以正常被壓縮 -->
         <section class="w-[45%] lg:w-2/5 h-full bg-surface flex flex-col p-2 lg:p-3 space-y-2 overflow-hidden">
             
-            <!-- 快捷鍵區：移除寫死的 h-24，改用彈性高度 -->
+           <!-- 快捷鍵區：加入專屬 ID 徹底解耦 CSS -->
             <div class="grid grid-cols-3 gap-2 shrink-0">
-                <button class="bg-white border-2 border-gray-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand flex flex-col items-center justify-center min-h-[4rem]">自訂商品</button>
-                <button class="bg-white border-2 border-gray-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand flex flex-col items-center justify-center min-h-[4rem]">秤重雞蛋<br><span class="text-xs font-normal text-gray-500">(自訂)</span></button>
-                <button class="bg-red-100 border-2 border-red-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-red-700 shadow-sm hover:bg-red-200 active:bg-red-300 flex flex-col items-center justify-center min-h-[4rem]">退空瓶<br><span class="text-xs font-normal text-red-500">(-$5)</span></button>
+                <button id="btn-quick-custom" class="bg-white border-2 border-gray-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand flex flex-col items-center justify-center min-h-[4rem]">自訂商品</button>
+                <button id="btn-quick-egg" class="bg-white border-2 border-gray-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-gray-700 shadow-sm hover:bg-blue-50 active:bg-blue-100 active:border-brand flex flex-col items-center justify-center min-h-[4rem]">秤重雞蛋<br><span class="text-xs font-normal text-gray-500">(自訂)</span></button>
+                <button id="btn-quick-bottle" class="bg-red-100 border-2 border-red-300 rounded-xl p-2 text-lg lg:text-xl font-bold text-red-700 shadow-sm hover:bg-red-200 active:bg-red-300 flex flex-col items-center justify-center min-h-[4rem]">退空瓶<br><span class="text-xs font-normal text-red-500">(-$5)</span></button>
             </div>
 
             <!-- 數字鍵盤區：加入 min-h-0 讓 grid 根據螢幕剩餘高度自動伸縮 -->
