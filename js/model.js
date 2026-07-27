@@ -8,14 +8,13 @@ class PosModel {
         this.activeTail = null;
         this.lastCheckoutState = null;
 
-        // 🚀 修復核心 1：補回遺失的種子資料庫，這是快捷鍵的靈魂！
+        // 🚀 Production 專用種子資料庫
         this.localDB = {
             '9990000000001': { name: '自訂商品', price: 0, isOpenPrice: true, isCustom: true },
             '9990000000002': { name: '秤重雞蛋', price: 0, isOpenPrice: true },
             'BOTTLE_RETURN': { name: '退公賣局空瓶', price: -5 }
         };
 
-        // 🚀 修復核心 2：移除重複宣告，並確保所有 Store Name 都有綁定 POS_CONFIG.STORE_NAME
         this.dbProducts = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'products' });
         this.dbOrders = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'orders' });
         this.dbLedger = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'ledger' });
@@ -25,25 +24,14 @@ class PosModel {
     _getUnifiedDisplayTime() {
         const date = new Date();
         const pad = (n) => String(n).padStart(2, '0');
-        const YYYY = date.getFullYear();
-        const MM = pad(date.getMonth() + 1);
-        const DD = pad(date.getDate());
-        const HH = pad(date.getHours());
-        const mm = pad(date.getMinutes());
-        const ss = pad(date.getSeconds());
-        return `${YYYY}-${MM}-${DD} ${HH}:${mm}:${ss}`; // 保證輸出 2026-07-27 18:06:15
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
 
-   // ==========================================
-    // 📦 商品資料庫 (dbProducts) 核心邏輯
-    // ==========================================
-
-    // 🚀 初始化商品庫 (若為空，則寫入 localDB 種子資料)
     async initProductsDB() {
         try {
             const keys = await this.dbProducts.keys();
             if (keys.length === 0) {
-                console.log('[系統] 偵測到空的商品庫，正在寫入初始種子資料...');
+                console.log('[系統] 寫入初始種子資料...');
                 for (const [barcode, data] of Object.entries(this.localDB)) {
                     await this.dbProducts.setItem(barcode, { barcode: barcode, ...data });
                 }
@@ -53,33 +41,25 @@ class PosModel {
         }
     }
 
-   // 🚀 讀取單一商品 (用於掃描結帳)
     async getProduct(barcode) {
         try {
-            // 🛡️ Tech Lead 核心防禦：系統保留的「虛擬商品」直接從本機記憶體讀取，絕對不依賴資料庫！
+            // 🛡️ 核心防禦：系統虛擬商品直接從記憶體讀取，絕不依賴 IndexedDB
             if (this.localDB && this.localDB[barcode]) {
                 return { barcode: barcode, ...this.localDB[barcode] };
             }
-            
-            // 一般實體商品才去 IndexedDB 撈取
             return await this.dbProducts.getItem(barcode);
         } catch (error) {
             console.error(`[系統] 讀取商品 ${barcode} 失敗:`, error);
             return null;
         }
     }
-    // 🚀 儲存或更新商品資料 (包含未來的促銷規則)
+
     async saveProduct(productData) {
         try {
-            // 防禦性編程：嚴格檢查必填欄位
             if (!productData.barcode || !productData.name || productData.price === undefined) {
                 throw new Error('缺少必填欄位 (條碼、名稱或售價)');
             }
-            
-            // 1. 寫入本地端 IndexedDB (保證離線可用)
             await this.dbProducts.setItem(productData.barcode, productData);
-            
-            // 2. 狀態同步：更新購物車內現有商品的快取屬性
             this.cart.forEach(item => {
                 if (item.barcode === productData.barcode) {
                     item.name = productData.name;
@@ -88,36 +68,23 @@ class PosModel {
                     item.promoStrategy = productData.promoStrategy || 'BEST';
                 }
             });
-
-            // 3. 🚀 雲端同步：發動非同步背景請求，將商品上傳至 Google Sheets
-            // 注意：不使用 await，讓它在背景執行 (Fire-and-Forget)，絕對不卡住長輩的 UI 畫面
             this._backgroundSync('SAVE_PRODUCT', productData);
-            
             return { success: true };
         } catch (error) {
             console.error('[系統] 儲存商品失敗:', error);
             return { success: false, message: error.message };
         }
     }
-    // 🚀 新增：資料庫背景自動瘦身防爆機制
-    async autoPruneData(daysToKeep = 20, historyToKeep = 50) {
-        console.log('[系統] 啟動背景資料瘦身機制...');
-        const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
 
+    async autoPruneData(daysToKeep = 20, historyToKeep = 50) {
+        const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
         try {
-            // 1. 隔離清理：瘦身 dbOrders (超過 20 天的訂單徹底刪除)
             const orderKeysToRemove = [];
             await this.dbOrders.iterate((value, key) => {
-                if (value.timestamp < cutoffTime) {
-                    orderKeysToRemove.push(key);
-                }
+                if (value.timestamp < cutoffTime) orderKeysToRemove.push(key);
             });
-            for (const key of orderKeysToRemove) {
-                await this.dbOrders.removeItem(key);
-            }
-            if (orderKeysToRemove.length > 0) console.log(`[系統] 釋放空間：已清除 ${orderKeysToRemove.length} 筆過期訂單。`);
+            for (const key of orderKeysToRemove) await this.dbOrders.removeItem(key);
 
-            // 2. 精準裁切：瘦身 dbLedger (絕對不刪除顧客，只裁切過長歷史)
             const ledgerUpdates = {};
             await this.dbLedger.iterate((record, key) => {
                 if (record && record.history && record.history.length > historyToKeep) {
@@ -125,35 +92,21 @@ class PosModel {
                     ledgerUpdates[key] = record;
                 }
             });
-            for (const [key, record] of Object.entries(ledgerUpdates)) {
-                await this.dbLedger.setItem(key, record);
-            }
-            if (Object.keys(ledgerUpdates).length > 0) console.log(`[系統] 效能優化：已裁切 ${Object.keys(ledgerUpdates).length} 位顧客的歷史紀錄。`);
-
+            for (const [key, record] of Object.entries(ledgerUpdates)) await this.dbLedger.setItem(key, record);
         } catch (error) {
-            console.error('[系統] 資料瘦身執行失敗，請通知管理員:', error);
+            console.error('[系統] 資料瘦身執行失敗:', error);
         }
     }
-    // (將這段新增在 model.js 的 class 內部)
-    // 🚀 新增：非同步背景同步方法 (Fire-and-Forget)
+
     _backgroundSync(action, payload) {
-        if (!POS_CONFIG.GAS_API_URL) {
-            console.warn('[系統] 未設定 GAS_API_URL，略過雲端備份。');
-            return;
-        }
+        if (!POS_CONFIG.GAS_API_URL) return;
         try {
-            // 注意：這裡我們刻意不使用 await，讓它在背景慢慢跑，不阻塞前端 UI
             fetch(POS_CONFIG.GAS_API_URL, {
                 method: 'POST',
-                // 技巧：不宣告 Content-Type 為 application/json，避開瀏覽器嚴格的 CORS 預檢請求
                 body: JSON.stringify({ action: action, data: payload })
-            }).then(res => res.json())
-                .then(result => {
-                    if (result.status === 'error') console.error('[雲端同步異常]', result.message);
-                })
-                .catch(err => console.error('[雲端網路連線失敗]', err));
+            }).catch(err => console.error('[雲端網路連線失敗]', err));
         } catch (error) {
-            console.error('[雲端同步執行階段錯誤]', error);
+            console.error('[雲端同步執行錯誤]', error);
         }
     }
 
@@ -168,30 +121,21 @@ class PosModel {
         } else { if (this.activeTail !== null) current -= this.activeTail; this.numpadBuffer = (current + amount).toString(); this.activeTail = amount; }
     }
 
-    // 🚀 升級：智慧商品搜尋引擎 (正式對接 dbProducts，解決資料未綁定問題)
     async searchProductsByKeyword(keyword, limit = 3) {
         if (!keyword || keyword.trim() === '') return [];
         const lowerKeyword = keyword.toLowerCase();
         const results = [];
-        
         try {
-            // 遍歷真實的 IndexedDB 商品庫
             await this.dbProducts.iterate((product, barcode) => {
                 const safeName = product.name || '';
                 if (barcode.toLowerCase().includes(lowerKeyword) || safeName.toLowerCase().includes(lowerKeyword)) {
-                    // 略過系統保留商品 (例如 999 開頭的自訂商品)
-                    if (!barcode.startsWith('999')) {
-                        results.push({ barcode, name: product.name, price: product.price });
-                    }
+                    if (!barcode.startsWith('999')) results.push({ barcode, name: product.name, price: product.price });
                 }
             });
-        } catch (error) {
-            console.error('[系統] 搜尋商品失敗:', error);
-        }
-        
-        return results.slice(0, limit); // 只回傳前 N 筆
+        } catch (error) {}
+        return results.slice(0, limit);
     }
-   // 🚀 升級：非同步購物車加入邏輯 (快取促銷規則) + 觸發自動備份
+
     async addToCart(barcode, customPrice = null, isFallback = false) {
         const now = Date.now();
         if (this.lastScan.barcode === barcode && (now - this.lastScan.timestamp) < this.DEBOUNCE_TIME) return { success: false, reason: 'debounce' };
@@ -208,10 +152,8 @@ class PosModel {
 
         if (product.isCustom) {
             this.customItemSequence++;
-            // 🚀 快取空的 promotions
             this.cart.push({ barcode: `${barcode}_${this.customItemSequence}`, name: `${product.name}${this.customItemSequence}`, price: customPrice || 0, qty: 1, isNegative: false, promotions: [] });
-            
-            this._autoSaveCart(); // 🛡️ 觸發防護網備份
+            this._autoSaveCart();
             return { success: true };
         }
         
@@ -229,23 +171,16 @@ class PosModel {
                 promoStrategy: product.promoStrategy || 'BEST'
             }); 
         }
-        
-        this._autoSaveCart(); // 🛡️ 觸發防護網備份
+        this._autoSaveCart();
         return { success: true };
     }
 
-    // 🚀 更新數量時，也必須觸發備份
     updateQty(index, newQty) { 
-        if (newQty <= 0) {
-            this.cart.splice(index, 1); 
-        } else {
-            this.cart[index].qty = newQty; 
-        }
-        this._autoSaveCart(); // 🛡️ 觸發防護網備份
+        if (newQty <= 0) this.cart.splice(index, 1); 
+        else this.cart[index].qty = newQty; 
+        this._autoSaveCart(); 
     }
 
-    // 🚀 新增：核心結帳演算法引擎 (Promotion Engine)
-    // 🚀 新增：單一促銷規則運算模組 (具備台式折數智慧轉換)
     _calcSinglePromo(qty, unitPrice, currentTotal, promo) {
         const conditionQty = parseInt(promo.qty) || 0;
         const conditionVal = parseFloat(promo.val) || 0;
@@ -257,12 +192,7 @@ class PosModel {
             const newTotal = (bundleCount * conditionVal) + (remainder * unitPrice);
             const discount = currentTotal - newTotal;
             return { discount: discount > 0 ? discount : 0, text: `✨ 滿${conditionQty}件特價$${conditionVal}` };
-            
         } else if (promo.type === 'QTY_DISCOUNT') {
-            // 🚀 智慧折數轉換演算法 (UX 防呆)
-            // 如果輸入 5 -> 視為 50% (5折)
-            // 如果輸入 8 -> 視為 80% (8折)
-            // 如果輸入 85 -> 視為 85% (85折)
             let rate, display;
             if (conditionVal >= 10) {
                 rate = conditionVal / 100;
@@ -271,19 +201,14 @@ class PosModel {
                 rate = conditionVal / 10;
                 display = `${conditionVal}折`;
             }
-            
             const discount = Math.round(currentTotal * (1 - rate));
             return { discount: discount > 0 ? discount : 0, text: `✨ 滿${conditionQty}件打${display}` };
         }
         return { discount: 0, text: '' };
     }
 
-    // 🚀 升級：具備 STACK (合併) 與 BEST (擇優) 策略的結帳引擎
     calculateCart() {
-        let totalAmount = 0;
-        let totalDiscount = 0;
-        let totalCount = 0;
-
+        let totalAmount = 0; let totalDiscount = 0; let totalCount = 0;
         const evaluatedCart = this.cart.map(item => {
             const originalTotal = item.price * item.qty;
             let currentTotal = originalTotal;
@@ -292,32 +217,21 @@ class PosModel {
             totalCount += item.qty;
 
             if (item.promotions && item.promotions.length > 0 && !item.isNegative) {
-                // 過濾掉未設定的空白優惠
                 const validPromos = item.promotions.filter(p => p.type !== 'NONE' && item.qty >= (parseInt(p.qty)||0) && (parseInt(p.qty)||0) > 0);
-
                 if (validPromos.length > 0) {
                     if (item.promoStrategy === 'BEST') {
-                        // 策略一：擇優計算 (各自算出折扣，挑最便宜的)
-                        let bestDiscount = 0;
-                        let bestPromoText = '';
+                        let bestDiscount = 0; let bestPromoText = '';
                         validPromos.forEach(promo => {
                             const res = this._calcSinglePromo(item.qty, item.price, originalTotal, promo);
-                            if (res.discount > bestDiscount) {
-                                bestDiscount = res.discount;
-                                bestPromoText = res.text;
-                            }
+                            if (res.discount > bestDiscount) { bestDiscount = res.discount; bestPromoText = res.text; }
                         });
                         if (bestDiscount > 0) {
                             totalItemDiscount = bestDiscount;
                             appliedPromos.push({ text: bestPromoText, discount: bestDiscount });
                         }
                     } else {
-                        // 策略二：合併計算 (標準零售業 STACK 邏輯：特價優先算，打折再疊加)
-                        // 排序：確保 QTY_PRICE (特價) 永遠比 QTY_DISCOUNT (打折) 先執行
                         validPromos.sort((a, b) => a.type === 'QTY_PRICE' ? -1 : 1);
-                        
                         validPromos.forEach(promo => {
-                            // 注意：每一次疊加，都是用「上一個扣完的金額 (currentTotal)」繼續算
                             const res = this._calcSinglePromo(item.qty, item.price, currentTotal, promo);
                             if (res.discount > 0) {
                                 currentTotal -= res.discount;
@@ -328,24 +242,13 @@ class PosModel {
                     }
                 }
             }
-
             const itemFinalTotal = originalTotal - totalItemDiscount;
-            totalAmount += itemFinalTotal;
-            totalDiscount += totalItemDiscount;
-
-            return { 
-                ...item, 
-                originalTotal, 
-                itemFinalTotal, 
-                itemDiscount: totalItemDiscount, 
-                appliedPromos 
-            };
+            totalAmount += itemFinalTotal; totalDiscount += totalItemDiscount;
+            return { ...item, originalTotal, itemFinalTotal, itemDiscount: totalItemDiscount, appliedPromos };
         });
-
         return { evaluatedItems: evaluatedCart, totalAmount, totalDiscount, totalCount };
     }
 
-    // 🚀 關鍵修復：改用 currentTotal 參數，或 fallback 使用 calculateCart
     getSmartTenders(currentTotal = null) {
         const total = currentTotal !== null ? currentTotal : this.calculateCart().totalAmount;
         if (total <= 0) return { top: [], bottom: [] };
@@ -356,7 +259,6 @@ class PosModel {
         };
     }
 
-   // 🚀 關鍵修復：捨棄 getTotal，改用 calculateCart().totalAmount
     processCheckout() {
         const total = this.calculateCart().totalAmount;
         if (total === 0) return { success: false, reason: 'empty_cart' };
@@ -367,36 +269,32 @@ class PosModel {
         return { success: true, change: tendered - total };
     }
 
-    // 🚀 更新顧客帳本 (掛帳/還款)，並同步至雲端
     async updateLedgerDebt(customer, amount, type = 'CREDIT') {
         try {
             const timestamp = Date.now();
             const displayTime = this._getUnifiedDisplayTime();
             
             const ledgerRecord = {
-                timestamp: timestamp,
-                displayTime: displayTime,
-                customerId: customer.id,
-                customerName: customer.name,
-                type: type, 
-                amount: amount
+                timestamp: timestamp, displayTime: displayTime,
+                customerId: customer.id, customerName: customer.name,
+                type: type, amount: amount
             };
 
-            // 1. 寫入帳本明細 (Transaction)
             await this.dbLedger.setItem(`LEDGER-${timestamp}`, ledgerRecord);
 
-            // 2. 更新顧客總餘額 (Profile)
             const customerData = await this.dbCustomers.getItem(customer.id);
             if (customerData) {
                 if (type === 'CREDIT') customerData.debt += amount;
-                else if (type === 'PAY') customerData.debt = Math.max(0, customerData.debt - amount); // 防呆：欠款不能為負
+                else if (type === 'PAY') customerData.debt = Math.max(0, customerData.debt - amount); 
                 
-                customerData.lastUpdate = timestamp; // 🚀 更新最後交易時間，供排序使用
+                customerData.lastUpdate = timestamp; 
                 await this.dbCustomers.setItem(customer.id, customerData);
             }
 
-            // 3. 雲端同步
+            // 🚀 核心修復：不僅同步帳本，還必須同步更新顧客總欠款
             this._backgroundSync('UPDATE_LEDGER', ledgerRecord);
+            if (customerData) this._backgroundSync('SAVE_CUSTOMER', customerData);
+            
             return true;
         } catch (error) {
             console.error('[系統] 帳本更新失敗:', error);
@@ -404,249 +302,151 @@ class PosModel {
         }
     }
 
-    // 🚀 儲存交易紀錄 (支援現金 CASH 與掛帳 CREDIT)，並同步至雲端
     async saveTransaction(type = 'CASH', customer = null) {
         if (this.cart.length === 0) throw new Error('購物車是空的');
-
         const cartReport = this.calculateCart();
         const orderId = `ORD-${Date.now()}`;
         const timestamp = Date.now();
         const displayTime = this._getUnifiedDisplayTime();
 
         const orderData = {
-            orderId: orderId,
-            timestamp: timestamp,
-            displayTime: displayTime,
-            type: type,
-            customerId: customer ? customer.id : null,
+            orderId: orderId, timestamp: timestamp, displayTime: displayTime,
+            type: type, customerId: customer ? customer.id : null,
             customerName: customer ? customer.name : '一般顧客',
-            totalAmount: cartReport.totalAmount,
-            tendered: this.lastCheckoutState.tendered,
-            change: this.lastCheckoutState.change,
-            items: cartReport.evaluatedItems // 包含購買商品、數量、折扣明細
+            totalAmount: cartReport.totalAmount, tendered: this.lastCheckoutState.tendered,
+            change: this.lastCheckoutState.change, items: cartReport.evaluatedItems 
         };
 
         try {
-            // 1. 寫入本地端 IndexedDB
             await this.dbOrders.setItem(orderId, orderData);
-
-            // 2. 如果是掛帳，連動更新本地顧客帳本
             if (type === 'CREDIT' && customer) {
                 await this.updateLedgerDebt(customer, cartReport.totalAmount, 'CREDIT');
             }
-
-            // 3. 🚀 雲端同步：發動背景備份，將訂單上傳至 Google Sheets
             this._backgroundSync('SAVE_ORDER', orderData);
-
             return { success: true, orderId: orderId };
         } catch (error) {
-            console.error('[系統] 訂單寫入失敗:', error);
             throw error;
         }
     }
 
-    // 🚀 升級：加入 YYYY-MM-DD 的日期過濾參數
     async getTransactionHistory(dateStr = null) {
         try {
             const orders = [];
             await this.dbOrders.iterate((value) => {
                 if (dateStr) {
-                    // value.displayTime 格式為 "YYYY-MM-DD HH:mm:ss"
-                    if (value.displayTime.startsWith(dateStr)) {
-                        orders.push(value);
-                    }
+                    if (value.displayTime.startsWith(dateStr)) orders.push(value);
                 } else {
-                    orders.push(value); // 未傳入日期則全撈 (備用)
+                    orders.push(value); 
                 }
             });
-            // 依然依據時間戳由新到舊排序
             orders.sort((a, b) => b.timestamp - a.timestamp);
             return orders;
         } catch (error) {
-            console.error('[系統] 讀取交易紀錄失敗:', error);
             return [];
         }
     }
 
-    // 🚀 升級：撈取帳本名單 (實作未結清置頂演算法)
     async getLedgerSummary() {
         try {
             const ledgers = [];
             await this.dbCustomers.iterate((value) => {
-                if (value && value.debt !== undefined && value.name) {
-                    ledgers.push(value);
-                }
+                if (value && value.debt !== undefined && value.name && !value.isDeleted) ledgers.push(value);
             });
-
-            // 💡 演算法：多權重排序
             ledgers.sort((a, b) => {
-                // 權重 1：有欠款的 (debt > 0) 排前面
                 if (a.debt > 0 && b.debt === 0) return -1;
                 if (a.debt === 0 && b.debt > 0) return 1;
-                // 權重 2：依據最後動作時間，越新的排越上面
                 return (b.lastUpdate || 0) - (a.lastUpdate || 0);
             });
-
             return ledgers;
         } catch (error) {
-            console.error('[系統] 讀取帳本總表失敗:', error);
             return [];
         }
     }
 
-    // 🚀 升級：撈取所有顧客名單
     async getAllCustomers() {
         try {
             const customers = [];
             await this.dbCustomers.iterate((value) => {
-                if (value && value.id && value.name && value.name.trim() !== '') {
-                    customers.push({ id: value.id, name: value.name });
-                }
+                if (value && value.id && value.name && value.name.trim() !== '') customers.push({ id: value.id, name: value.name });
             });
             return customers;
-        } catch (error) {
-            console.error('[系統] 讀取顧客名單失敗:', error);
-            return [];
-        }
+        } catch (error) { return []; }
     }
 
-    // 🚀 新增：建立新顧客檔案 (嚴格寫入 dbCustomers)
     async createNewCustomer(name) {
         try {
             const customerId = `CUST-${Date.now()}`;
-            const newCustomer = {
-                id: customerId,
-                name: name,
-                debt: 0,
-                isDeleted: false,
-                lastUpdate: Date.now()
-            };
+            const newCustomer = { id: customerId, name: name, debt: 0, isDeleted: false, lastUpdate: Date.now() };
             await this.dbCustomers.setItem(customerId, newCustomer);
-            
-            // 📡 同步至雲端 Customers 表
             this._backgroundSync('SAVE_CUSTOMER', newCustomer);
-            
             return newCustomer;
-        } catch (error) {
-            console.error('[系統] 新增顧客失敗:', error);
-            throw error;
-        }
+        } catch (error) { throw error; }
     }
 
-    // 🚀 新增：撈取單一顧客的完整帳本紀錄 (Profile + History)
     async getCustomerLedger(customerId) {
         try {
-            // 1. 取得顧客基本資料
             const customer = await this.dbCustomers.getItem(customerId);
             if (!customer) return null;
-
-            // 2. 掃描明細表，撈出屬於該顧客的所有歷史紀錄
             const history = [];
-            await this.dbLedger.iterate((record) => {
-                if (record && record.customerId === customerId) {
-                    history.push(record);
-                }
-            });
-
-            // 3. 將歷史紀錄由新到舊排序
+            await this.dbLedger.iterate((record) => { if (record && record.customerId === customerId) history.push(record); });
             history.sort((a, b) => b.timestamp - a.timestamp);
-
-            // 4. 合併回傳
-            return {
-                ...customer,
-                totalDebt: customer.debt, // 為了相容前端 View 的變數名稱
-                history: history
-            };
-        } catch (error) {
-            console.error('[系統] 讀取單一顧客帳本失敗:', error);
-            return null;
-        }
+            return { ...customer, totalDebt: customer.debt, history: history };
+        } catch (error) { return null; }
     }
 
-    _formatDate(date) {
-        const pad = (n) => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-    }
+    clearAll() { this.cart = []; this.numpadBuffer = ''; this.activeTail = null; localStorage.removeItem('pos_cart_backup'); }
 
-    clearAll() {
-        this.cart = [];
-        this.numpadBuffer = '';
-        this.activeTail = null;
-        localStorage.removeItem('pos_cart_backup'); // 結帳完或手動清空時，刪除備份
-    }
-
-    // ----------------------------------------------------
-    // 🚀 第三道防護：購物車自動備份機制 (Cart Auto-Backup)
-    // ----------------------------------------------------
-    _autoSaveCart() {
-        // 將目前的購物車陣列轉為字串，瞬間寫入本機硬碟
-        localStorage.setItem('pos_cart_backup', JSON.stringify(this.cart));
-    }
+    _autoSaveCart() { localStorage.setItem('pos_cart_backup', JSON.stringify(this.cart)); }
 
     loadCartBackup() {
         const backup = localStorage.getItem('pos_cart_backup');
         if (backup) {
-            try {
-                this.cart = JSON.parse(backup);
-                console.log('[系統] 成功還原上一筆未完成的結帳單！');
-            } catch(e) {
-                this.cart = [];
-            }
+            try { this.cart = JSON.parse(backup); } catch(e) { this.cart = []; }
         }
     }
 
-    // 🚀 Phase 7：更新顧客基本資料 (更名)
     async updateCustomerName(customerId, newName) {
         try {
             const customer = await this.dbCustomers.getItem(customerId);
             if (!customer) throw new Error('找不到該顧客資料');
-            
-            customer.name = newName;
-            customer.lastUpdate = Date.now();
+            customer.name = newName; customer.lastUpdate = Date.now();
             await this.dbCustomers.setItem(customerId, customer);
-            
-            // 📡 同步至雲端 Customers 表 (Upsert 覆蓋舊名)
             this._backgroundSync('SAVE_CUSTOMER', customer);
-            
             return true;
-        } catch (error) {
-            console.error('[系統] 更新顧客姓名失敗:', error);
-            throw error;
-        }
+        } catch (error) { throw error; }
     }
 
-    // 🚀 Phase 7 新增：軟刪除/封存顧客 (Soft Delete)
-    // 🛑 核心防呆：有欠款金額者絕對禁止刪除！
-    // 🚀 Phase 7：軟刪除/封存顧客 (Soft Delete)
     async deleteCustomer(customerId) {
         try {
             const customer = await this.dbCustomers.getItem(customerId);
             if (!customer) throw new Error('找不到該顧客資料');
             if (customer.debt > 0) throw new Error('該顧客仍有欠款，無法刪除');
-
-            customer.isDeleted = true;
-            customer.lastUpdate = Date.now();
+            customer.isDeleted = true; customer.lastUpdate = Date.now();
             await this.dbCustomers.setItem(customerId, customer);
-            
-            // 📡 同步至雲端 Customers 表 (將 isDeleted 標記為 TRUE)
             this._backgroundSync('SAVE_CUSTOMER', customer);
-            
             return true;
-        } catch (error) {
-            console.error('[系統] 軟刪除顧客失敗:', error);
-            throw error;
-        }
+        } catch (error) { throw error; }
     }
 
-    // 🚀 Phase 8.2 升級：全域災難復原同步引擎 (Full Disaster Recovery Sync)
+    // 🚀 核心升級：具備日期防禦與自我修復演算法的全域同步引擎
     async syncAllDataFromCloud() {
         if (!POS_CONFIG.GAS_API_URL) throw new Error('未設定 API URL');
-        
-        // 紀錄各項資料的同步筆數，供前端 UI 顯示
         const results = { products: 0, customers: 0, ledgers: 0, orders: 0 };
+        
+        // 🛠️ 防禦型工具：把從 Google Sheets 傳來被弄壞的 Date 字串，強制轉回 "YYYY-MM-DD HH:mm:ss"
+        const normalizeDate = (dateVal) => {
+            if (!dateVal) return '';
+            // 如果字串本身已經是正常格式 (含有 - 且不含 GMT)，直接回傳
+            if (typeof dateVal === 'string' && dateVal.includes('-') && !dateVal.includes('GMT')) return dateVal.substring(0, 19);
+            
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return String(dateVal);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        };
 
         try {
-            // 1. 📦 同步商品庫 (Products)
+            // 1. 同步商品 (Products)
             const resProd = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_PRODUCTS`);
             const dataProd = await resProd.json();
             if (dataProd.status === 'success' && dataProd.data) {
@@ -654,59 +454,53 @@ class PosModel {
                 results.products = dataProd.data.length;
             }
 
-            // 2. 👥 同步顧客基本資料 (Customers)
-            const resCust = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_CUSTOMERS`);
-            const dataCust = await resCust.json();
-            if (dataCust.status === 'success' && dataCust.data) {
-                for (const item of dataCust.data) await this.dbCustomers.setItem(item.id, item);
-                results.customers = dataCust.data.length;
-            }
-
-            // 3. 📖 同步顧客帳本明細 (Ledger)
+            // 2. 同步顧客帳本明細 (Ledger) -> 必須先抓，供 Customer 自我修復計算
             const resLedger = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_LEDGER`);
             const dataLedger = await resLedger.json();
+            const customerDebtMap = {}; // 存放計算出的真實欠款
+            
             if (dataLedger.status === 'success' && dataLedger.data) {
-                // 使用 timestamp 作為鍵值，避免資料覆蓋
-                for (const item of dataLedger.data) await this.dbLedger.setItem(`LEDGER-${item.timestamp}`, item);
+                for (const item of dataLedger.data) {
+                    item.displayTime = normalizeDate(item.displayTime); // 🛠️ 日期正規化
+                    await this.dbLedger.setItem(`LEDGER-${item.timestamp}`, item);
+
+                    // 🏥 計算該顧客的真實總欠款
+                    if (customerDebtMap[item.customerId] === undefined) customerDebtMap[item.customerId] = 0;
+                    if (item.type === 'CREDIT') customerDebtMap[item.customerId] += item.amount;
+                    if (item.type === 'PAY') customerDebtMap[item.customerId] = Math.max(0, customerDebtMap[item.customerId] - item.amount);
+                }
                 results.ledgers = dataLedger.data.length;
             }
 
-            // 4. 🧾 同步近期結帳訂單 (Orders)
+            // 3. 同步顧客主檔 (Customers) -> 套用自我修復
+            const resCust = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_CUSTOMERS`);
+            const dataCust = await resCust.json();
+            if (dataCust.status === 'success' && dataCust.data) {
+                for (const item of dataCust.data) {
+                    // 🏥 自我修復：如果明細算出來的欠款與雲端不同，以算出來的為準！
+                    if (customerDebtMap[item.id] !== undefined) {
+                        item.debt = customerDebtMap[item.id]; 
+                    }
+                    await this.dbCustomers.setItem(item.id, item);
+                }
+                results.customers = dataCust.data.length;
+            }
+
+            // 4. 同步訂單 (Orders)
             const resOrders = await fetch(`${POS_CONFIG.GAS_API_URL}?action=FETCH_ORDERS`);
             const dataOrders = await resOrders.json();
             if (dataOrders.status === 'success' && dataOrders.data) {
-                for (const item of dataOrders.data) await this.dbOrders.setItem(item.orderId, item);
+                for (const item of dataOrders.data) {
+                    item.displayTime = normalizeDate(item.displayTime); // 🛠️ 日期正規化
+                    await this.dbOrders.setItem(item.orderId, item);
+                }
                 results.orders = dataOrders.data.length;
             }
 
             return results;
         } catch (error) {
-            console.error('[系統] 全域雲端同步失敗:', error);
+            console.error('[系統] 雲端同步失敗:', error);
             throw error;
-        }
-    }
-
-    // 🚀 升級：撈取帳本名單 (自動過濾被軟刪除 isDeleted 的顧客)
-    async getLedgerSummary() {
-        try {
-            const ledgers = [];
-            await this.dbCustomers.iterate((value) => {
-                // 過濾掉已被軟刪除 (isDeleted === true) 的顧客
-                if (value && value.debt !== undefined && value.name && !value.isDeleted) {
-                    ledgers.push(value);
-                }
-            });
-
-            ledgers.sort((a, b) => {
-                if (a.debt > 0 && b.debt === 0) return -1;
-                if (a.debt === 0 && b.debt > 0) return 1;
-                return (b.lastUpdate || 0) - (a.lastUpdate || 0);
-            });
-
-            return ledgers;
-        } catch (error) {
-            console.error('[系統] 讀取帳本總表失敗:', error);
-            return [];
         }
     }
 }

@@ -348,6 +348,13 @@
         </div>
     </div>
 
+    <!-- 🚀 全域讀取遮罩 (防止同步時誤觸) -->
+    <div id="global-loader" class="hidden fixed inset-0 bg-gray-900 bg-opacity-80 z-[9999] flex-col items-center justify-center select-none backdrop-blur-sm transition-opacity">
+        <div class="animate-spin rounded-full h-24 w-24 lg:h-32 lg:w-32 border-t-8 border-b-8 border-brand mb-6"></div>
+        <h2 class="text-3xl lg:text-4xl font-extrabold text-white tracking-widest animate-pulse">資料同步中...</h2>
+        <p class="text-lg lg:text-xl text-gray-300 mt-4 font-bold">正在重建本地資料庫，請勿關閉網頁</p>
+    </div>
+    
     <!-- 腳本載入區 -->
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <script src="js/config.js"></script>

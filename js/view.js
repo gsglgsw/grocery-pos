@@ -1,6 +1,7 @@
 class PosView {
     constructor() {
         // --- 基礎介面綁定 ---
+        this.globalLoader = document.getElementById('global-loader');
         this.cartListContainer = document.getElementById('cart-list-container');
         this.totalDisplay = document.getElementById('cart-total-display');
 
@@ -108,6 +109,20 @@ class PosView {
 
     }
 
+    // 🚀 新增：全域遮罩控制
+    showLoader() { 
+        if (this.globalLoader) {
+            this.globalLoader.classList.remove('hidden'); 
+            this.globalLoader.classList.add('flex'); 
+        }
+    }
+    hideLoader() { 
+        if (this.globalLoader) {
+            this.globalLoader.classList.add('hidden'); 
+            this.globalLoader.classList.remove('flex'); 
+        }
+    }
+    
     // ==========================================
     // 🚀 新增：商品搜尋與智慧預覽 UI 控制
     // ==========================================
