@@ -14,7 +14,7 @@ class PosView {
         this.btnGoAudit = document.getElementById('btn-go-audit');
         this.btnBackCheckoutAudit = document.getElementById('btn-back-checkout-audit');
 
-        this.quickKeys = document.querySelectorAll('.grid.grid-cols-3.gap-3 > button');
+        this.quickKeys = document.querySelectorAll('.grid.grid-cols-3.gap-2 > button');
         this.numpadDisplay = document.getElementById('numpad-display');
         this.numpadBtns = document.querySelectorAll('.numpad-btn');
         this.tenderContainer = document.getElementById('tender-container');
