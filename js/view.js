@@ -2,7 +2,7 @@ class PosView {
     constructor() {
         // --- 基礎介面綁定 ---
         this.cartListContainer = document.getElementById('cart-list-container');
-        this.totalDisplay = document.querySelector('.text-7xl.font-black');
+        this.totalDisplay = document.getElementById('cart-total-display');
 
         this.checkoutView = document.getElementById('checkout-view');
         this.ledgerView = document.getElementById('ledger-view');
