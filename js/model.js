@@ -10,8 +10,6 @@ class PosModel {
 
         // 🚀 修復核心 1：補回遺失的種子資料庫，這是快捷鍵的靈魂！
         this.localDB = {
-            '4710123456789': { name: '統一肉燥麵', price: 18 },
-            '4711234567890': { name: '台灣啤酒', price: 35 },
             '9990000000001': { name: '自訂商品', price: 0, isOpenPrice: true, isCustom: true },
             '9990000000002': { name: '秤重雞蛋', price: 0, isOpenPrice: true },
             'BOTTLE_RETURN': { name: '退公賣局空瓶', price: -5 }
@@ -58,6 +56,12 @@ class PosModel {
    // 🚀 讀取單一商品 (用於掃描結帳)
     async getProduct(barcode) {
         try {
+            // 🛡️ Tech Lead 核心防禦：系統保留的「虛擬商品」直接從本機記憶體讀取，絕對不依賴資料庫！
+            if (this.localDB && this.localDB[barcode]) {
+                return { barcode: barcode, ...this.localDB[barcode] };
+            }
+            
+            // 一般實體商品才去 IndexedDB 撈取
             return await this.dbProducts.getItem(barcode);
         } catch (error) {
             console.error(`[系統] 讀取商品 ${barcode} 失敗:`, error);

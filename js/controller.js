@@ -358,9 +358,9 @@ async handleSyncProducts() {
 async handleQuickKey(barcode) {
         const product = await this.model.getProduct(barcode);
         
-        // 🚀 Tech Lead 防呆：如果資料庫完全找不到該快捷商品，絕對不能默默失敗！
+        // 🚀 防呆攔截：絕不允許靜默失敗
         if (!product) {
-            alert(`❌ 系統錯誤：找不到快捷商品檔案 (條碼: ${barcode})！\n這通常是因為資料庫被清空，請重新整理網頁讓系統重建預設檔案。`);
+            alert(`❌ 系統錯誤：找不到快捷商品檔案 (條碼: ${barcode})！`);
             return;
         }
 
