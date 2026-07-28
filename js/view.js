@@ -122,7 +122,7 @@ class PosView {
             this.globalLoader.classList.remove('flex'); 
         }
     }
-    
+
     // ==========================================
     // 🚀 新增：商品搜尋與智慧預覽 UI 控制
     // ==========================================
@@ -204,10 +204,11 @@ class PosView {
             let promoBadges = '';
             if (item.appliedPromos && item.appliedPromos.length > 0) {
                 item.appliedPromos.forEach(p => {
-                    promoBadges += `<div class="mt-2 inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-300 shadow-sm mr-2">${p.text} (-$${p.discount})</div>`;
+                    promoBadges += `<div class="mt-2 inline-flex items-center max-w-full bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold border border-green-300 shadow-sm mr-2 truncate">
+                        <span class="truncate">${p.text}</span> <span class="ml-1 shrink-0">(-$${p.discount})</span>
+                    </div>`;
                 });
             }
-
             const rowTotalHTML = item.itemDiscount > 0
                 ? `<span class="text-2xl text-gray-400 line-through block mb-1">$${item.originalTotal}</span><span class="text-4xl font-black text-danger">$${item.itemFinalTotal}</span>`
                 : `<span class="text-4xl font-black text-danger">$${item.itemFinalTotal}</span>`;

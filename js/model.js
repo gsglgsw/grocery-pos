@@ -12,7 +12,7 @@ class PosModel {
         this.localDB = {
             '9990000000001': { name: '自訂商品', price: 0, isOpenPrice: true, isCustom: true },
             '9990000000002': { name: '秤重雞蛋', price: 0, isOpenPrice: true },
-            'BOTTLE_RETURN': { name: '退公賣局空瓶', price: -5 }
+            'BOTTLE_RETURN': { name: '退空瓶/退款', price: 0, isOpenPrice: true, isCustom: true, isRefund: true }
         };
 
         this.dbProducts = localforage.createInstance({ name: POS_CONFIG.STORE_NAME, storeName: 'products' });
@@ -152,7 +152,18 @@ class PosModel {
 
         if (product.isCustom) {
             this.customItemSequence++;
-            this.cart.push({ barcode: `${barcode}_${this.customItemSequence}`, name: `${product.name}${this.customItemSequence}`, price: customPrice || 0, qty: 1, isNegative: false, promotions: [] });
+
+            // 🚀 新增：判斷是否為退款商品，若是，則將自訂金額強制轉為負數
+            const finalPrice = product.isRefund ? -Math.abs(customPrice || 0) : (customPrice || 0);
+
+            this.cart.push({ 
+                barcode: `${barcode}_${this.customItemSequence}`, 
+                name: `${product.name}${this.customItemSequence}`, 
+                price: finalPrice, 
+                qty: 1, 
+                isNegative: finalPrice < 0, // 系統會根據此屬性自動套用紅色 UI
+                promotions: [] 
+            });
             this._autoSaveCart();
             return { success: true };
         }
